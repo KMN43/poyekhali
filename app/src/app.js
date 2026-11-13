@@ -172,6 +172,7 @@
   function renderChips() {
     const chip = (id, name, cls = '') => `<button class="chip ${cls}" role="radio" aria-checked="${pick === id}" data-id="${esc(id)}">${esc(name)}</button>`;
     $('chips').innerHTML = chip('*', 'Todos', 'all') + catalog.sats.map(s => chip(s.id, s.name)).join('');
+    $('chips').querySelectorAll('.chip[data-id]').forEach(b => { if (b.dataset.id !== '*') b.insertAdjacentHTML('afterbegin', window.SAT_EMBLEM(b.dataset.id)); });
   }
   $('chips').addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b || b.dataset.id === pick) return;
@@ -208,7 +209,7 @@
         const cls = ['p', p.max < LOW_EL ? 'low' : '', p === selected ? 'sel' : '', live ? 'live' : ''].join(' ');
         html += `<tr class="${cls}" data-i="${i}">
           <td class="t">${live ? 'ahora' : hhmm(new Date(p.aos))}</td>
-          <td>${esc(p.sat.name)}</td>
+          <td class="sn">${window.SAT_EMBLEM(p.sat.id)}${esc(p.sat.name)}</td>
           <td><span class="el"><span class="bar"><i style="width:${Math.min(100, p.max / 90 * 100).toFixed(0)}%"></i></span>${Math.round(p.max)}°</span></td>
           <td class="r">${Math.round((p.los - p.aos) / 60000)}′</td>
           <td class="r">${card(p.azA)}→${card(p.azL)}</td>
@@ -251,7 +252,7 @@
     const info = window.SAT_INFO[sat.id] || { title: sat.name, org: '—', flag: '', kind: '', year: '—', sends: sat.use, purpose: '—' };
     const o = orbitOf(sat.id);
     const alt = !o ? '—' : Math.abs(o.apo - o.per) < 40 ? `~${num((o.apo + o.per) / 2)} km` : `${num(o.per)}–${num(o.apo)} km`;
-    $('card').innerHTML = `<div class="bpw">${window.SAT_BLUEPRINT(sat.id)}</div>
+    $('card').innerHTML = `<div class="bpw">${window.SAT_VISUAL(sat.id)}</div>
       <div class="info"><h2>${esc(info.title)}</h2><div class="org">${esc(info.org)}${info.flag ? ' · ' + esc(info.flag) : ''}</div>
         <dl>
           <dt>Órbita</dt><dd>${esc(info.kind)}${o ? ` · ${alt} · ${num(o.inc, 1)}° · ${num(o.min)} min` : ''}</dd>

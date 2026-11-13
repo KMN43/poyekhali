@@ -9,3 +9,6 @@ app/www/
 # firma de la app: NUNCA subir (guárdala en un sitio seguro: sin ella no se pueden publicar actualizaciones)
 *.jks
 keystore.properties
+
+# fotos originales para el pixel art (se descargan al ejecutar make-pixel.py)
+app/.pxcache/
