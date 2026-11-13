@@ -1,4 +1,4 @@
-// Pasadas · Worker de Cloudflare
+// Poyekhali · Worker de Cloudflare
 // GET /api/catalog → satélites que se pueden escuchar con un RTL-SDR (bandas de 2 m y 70 cm), con sus TLE
 //                    actuales (CelesTrak) y los transmisores activos en esas bandas (SatNOGS DB).
 // Las respuestas de CelesTrak y SatNOGS se cachean en el borde de Cloudflare (6 h y 12 h) y el catálogo, 1 h.
@@ -16,7 +16,7 @@ const CANDIDATOS = [
   { id: 'io117', name: 'IO-117', norad: 53106, kind: 'amateur', use: 'Telemetría FSK', main: 435.31 },
 ];
 const BANDAS = [[136e6, 150e6], [430e6, 440e6]];   // lo que cubre bien un V4 con antenas sencillas
-const UA = { 'User-Agent': 'pasadas-worker (estacion SDR casera)' };
+const UA = { 'User-Agent': 'poyekhali-worker (estacion SDR casera)' };
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' };
 
 const enBanda = f => BANDAS.some(([a, b]) => f >= a && f <= b);
@@ -115,7 +115,7 @@ export default {
       return res;
     }
     if (url.pathname === '/') {
-      return new Response('Pasadas · catálogo de satélites en /api/catalog', { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS } });
+      return new Response('Poyekhali · catálogo de satélites en /api/catalog', { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS } });
     }
     return new Response('No encontrado', { status: 404, headers: CORS });
   },

@@ -1,4 +1,4 @@
-"""Logo de Pasadas → iconos de Android, pantalla de arranque y docs/logo.png + docs/logo.svg.
+"""Logo de Poyekhali → iconos de Android, pantalla de arranque y docs/logo.png + docs/logo.svg.
     python make-icons.py
 Misma geometría que src/logo.js: esfera en 9 husos + órbita inclinada con el satélite.
 """

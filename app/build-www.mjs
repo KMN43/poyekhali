@@ -15,7 +15,7 @@ function cpSync(from, to) {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WWW = join(HERE, 'www');
-const API = 'https://pasadas.biblioscan-galaxia.workers.dev/api/catalog';
+const API = 'https://poyekhali.biblioscan-galaxia.workers.dev/api/catalog';
 const VERSION = JSON.parse(readFileSync(join(HERE, 'package.json'), 'utf8')).version;
 
 rmSync(WWW, { recursive: true, force: true });

@@ -1,4 +1,4 @@
-// Publica una versión nueva de Pasadas para Android en GitHub Releases (igual que BiblioScan).
+// Publica una versión nueva de Poyekhali para Android en GitHub Releases (igual que BiblioScan).
 //
 //   npm run release                    → sube el último número (1.0.0 → 1.0.1)
 //   npm run release -- minor           → 1.0.1 → 1.1.0     (o "major", o una versión exacta: 1.2.0)
@@ -6,7 +6,7 @@
 //   npm run release -- 1.0.0 --first   → primera publicación: no sube la versión
 //
 // Qué hace: sube la versión (package.json + versionCode/versionName), compila la APK firmada, la copia a
-// ../Pasadas.apk, hace commit + etiqueta vX.Y.Z, los sube y crea la Release con la APK.
+// ../Poyekhali.apk, hace commit + etiqueta vX.Y.Z, los sube y crea la Release con la APK.
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -51,24 +51,24 @@ if (!first) {
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
   writeFileSync(gradlePath, gradle);
 }
-console.log(`\n→ Pasadas ${version}\n`);
+console.log(`\n→ Poyekhali ${version}\n`);
 
 run('node build-www.mjs');
 run('npx cap sync android');
 run(process.platform === 'win32' ? `"${join(HERE, 'android', 'gradlew.bat')}" assembleRelease` : './gradlew assembleRelease', { cwd: join(HERE, 'android'), env });
 const apk = join(HERE, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
 if (!existsSync(apk)) fail('No se ha generado la APK.');
-copyFileSync(apk, join(ROOT, 'Pasadas.apk'));
+copyFileSync(apk, join(ROOT, 'Poyekhali.apk'));
 
 if (!first) {
   run('git add package.json android/app/build.gradle');
-  run(`git commit -m "Pasadas ${version}"`);
+  run(`git commit -m "Poyekhali ${version}"`);
 }
 run(`git tag ${tag}`);
 run('git push');
 run(`git push origin ${tag}`);
-const body = (notes ? notes + '\n\n' : '') + 'Instala `Pasadas.apk` en el móvil. Si ya la tienes, la app avisa de la versión nueva al abrirse.';
-const notesFile = join(tmpdir(), `pasadas-${tag}-notes.md`);
+const body = (notes ? notes + '\n\n' : '') + 'Instala `Poyekhali.apk` en el móvil. Si ya la tienes, la app avisa de la versión nueva al abrirse.';
+const notesFile = join(tmpdir(), `poyekhali-${tag}-notes.md`);
 writeFileSync(notesFile, body);
-run(`"${GH}" release create ${tag} "${join(ROOT, 'Pasadas.apk')}" --title "Pasadas ${version}" --notes-file "${notesFile}"`);
+run(`"${GH}" release create ${tag} "${join(ROOT, 'Poyekhali.apk')}" --title "Poyekhali ${version}" --notes-file "${notesFile}"`);
 console.log(`\n✓ Publicada ${tag}`);

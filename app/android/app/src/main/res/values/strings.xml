@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Pasadas</string>
-    <string name="title_activity_main">Pasadas</string>
+    <string name="app_name">Poyekhali</string>
+    <string name="title_activity_main">Poyekhali</string>
     <string name="package_name">com.kmn43.pasadas</string>
     <string name="custom_url_scheme">com.kmn43.pasadas</string>
 </resources>

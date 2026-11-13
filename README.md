@@ -1,6 +1,8 @@
-<p align="center"><img src="docs/logo.png" width="140" alt="Logo de Pasadas"></p>
+<p align="center"><img src="docs/logo.png" width="140" alt="Logo de Poyekhali"></p>
 
-# Pasadas
+# Poyekhali
+
+*«¡Поехали!» (¡Vámonos!), lo que dijo Gagarin al despegar el 12 de abril de 1961.*
 
 Próximas pasadas sobre **Zaragoza** de los satélites que se pueden **escuchar con un RTL-SDR** y antenas sencillas (bandas de 2 m y 70 cm): Meteor-M (imágenes LRPT), la ISS y satélites de radioaficionado.
 
@@ -14,14 +16,14 @@ Escanea el QR o abre el enlace en el móvil:
 
 <p><img src="docs/qr-apk.png" width="220" alt="QR de descarga de la APK"></p>
 
-**https://github.com/KMN43/pasadas/releases/latest/download/Pasadas.apk**
+**https://github.com/KMN43/poyekhali/releases/latest/download/Poyekhali.apk**
 
 La primera vez Android pide *Permitir de esta fuente*. Cuando hay una versión nueva, la app lo avisa al abrirse.
 
 ## Cómo funciona
 | Pieza | Qué hace |
 |---|---|
-| `worker/` | **Cloudflare Worker** (`https://pasadas.biblioscan-galaxia.workers.dev/api/catalog`). Junta los TLE actuales (SatNOGS DB, con CelesTrak de reserva) y los transmisores activos en 136–150 y 430–440 MHz. Descarta los satélites sin transmisor vivo o con TLE de más de 30 días. Caché en el borde de 1 h |
+| `worker/` | **Cloudflare Worker** (`https://poyekhali.biblioscan-galaxia.workers.dev/api/catalog`). Junta los TLE actuales (SatNOGS DB, con CelesTrak de reserva) y los transmisores activos en 136–150 y 430–440 MHz. Descarta los satélites sin transmisor vivo o con TLE de más de 30 días. Caché en el borde de 1 h |
 | `app/` | App **Capacitor**. Calcula las pasadas en el móvil con SGP4 (`satellite.js`) y guarda el último catálogo para funcionar sin conexión |
 | `app/make-land.mjs` | Genera la malla de puntos del mapa (Natural Earth 110m, cada 2°) |
 | `app/make-icons.py` | Logo → iconos de Android, pantalla de arranque y `docs/logo.*` |

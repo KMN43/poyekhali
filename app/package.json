@@ -1,8 +1,8 @@
 {
-  "name": "pasadas",
+  "name": "poyekhali",
   "version": "1.0.0",
   "private": true,
-  "description": "Pasadas: próximas pasadas sobre Zaragoza de los satélites que se pueden escuchar con un RTL-SDR (Capacitor).",
+  "description": "Poyekhali: próximas pasadas sobre Zaragoza de los satélites que se pueden escuchar con un RTL-SDR (Capacitor).",
   "scripts": {
     "land": "node make-land.mjs",
     "build:web": "node build-www.mjs",

@@ -1,7 +1,7 @@
 {
-  "name": "pasadas-worker",
+  "name": "poyekhali-worker",
   "private": true,
-  "description": "Pasadas: catálogo de satélites escuchables con TLE y transmisores (Cloudflare Worker)",
+  "description": "Poyekhali: catálogo de satélites escuchables con TLE y transmisores (Cloudflare Worker)",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"

@@ -1,9 +1,9 @@
-// Pasadas — próximas pasadas sobre Zaragoza de los satélites que se pueden escuchar con un RTL-SDR.
+// Poyekhali — próximas pasadas sobre Zaragoza de los satélites que se pueden escuchar con un RTL-SDR.
 // Las órbitas (TLE) y frecuencias llegan del Worker de Cloudflare; las pasadas se calculan en el móvil (SGP4).
 (() => {
   'use strict';
-  const API = 'https://pasadas.biblioscan-galaxia.workers.dev/api/catalog';
-  const REPO = 'KMN43/pasadas';
+  const API = 'https://poyekhali.biblioscan-galaxia.workers.dev/api/catalog';
+  const REPO = 'KMN43/poyekhali';
   const STATION = { name: 'Zaragoza', lat: 41.6488, lon: -0.8891, alt: 200 };
   const MIN_EL = 10;          // pasadas con elevación máxima inferior no se listan
   const LOW_EL = 25;          // por debajo, se muestran atenuadas
@@ -338,7 +338,7 @@
     const c = await loadCatalog();
     if (!c) { $('list').innerHTML = '<div class="empty">Sin conexión y sin datos guardados. Abre la app con Internet una vez.</div>'; return; }
     useCatalog(c);
-    $('where').textContent = `${STATION.name} · ${STATION.lat.toFixed(2).replace('.', ',')} N ${Math.abs(STATION.lon).toFixed(2).replace('.', ',')} O`;
+    $('where').textContent = `Поехали · ${STATION.name}`;
     renderChips();
     compute();
     renderList(fresh);

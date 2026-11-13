@@ -1,4 +1,4 @@
-// Logo de Pasadas: una esfera cortada en husos (meridianos) y la órbita de un satélite.
+// Logo de Poyekhali: una esfera cortada en husos (meridianos) y la órbita de un satélite.
 // Una sola definición: la usa la app (inline) y logo.py replica la misma geometría para los iconos.
 (function () {
   const N = 9, GAP = 9.2, RY = 34, RX = 4.1;
