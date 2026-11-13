@@ -34,17 +34,18 @@
   const fDayShort = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', timeZone: tz });
   const dayKey = d => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(d);
   const hhmm = d => fTime.format(d);
+  const fTimeS = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz });
+  const hms = d => fTimeS.format(d);
+  const p2 = n => String(n).padStart(2, '0');
+  // cuenta atrás: T−hh:mm:ss (o T−d días hh h si falta más de un día)
+  function tminus(ms) {
+    const t = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(t / 86400), h = Math.floor(t % 86400 / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60;
+    return d ? `T−${d} d ${p2(h)} h` : `T−${p2(h)}:${p2(m)}:${p2(sec)}`;
+  }
   const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
   const card = az => COMPASS[Math.round((((az % 360) + 360) % 360) / 45) % 8];
+  const num = (x, d = 0) => x.toFixed(d).replace('.', ',');
   const mhz = f => f.toFixed(3).replace('.', ',');
-  function until(ms) {
-    const m = Math.round(ms / 60000);
-    if (m < 1) return 'ya';
-    if (m < 60) return `en ${m} min`;
-    const h = Math.floor(m / 60), r = m % 60;
-    if (h < 24) return `en ${h} h${r ? ' ' + r + ' min' : ''}`;
-    return `en ${Math.floor(h / 24)} d ${h % 24} h`;
-  }
 
   // ------------------------------------------------------------------ iconos de luz (16×16, trazo)
   // ciclo día/noche en disco (texturas de 1 bit): sol lleno, medio disco rayado al amanecer (arriba) y al
@@ -208,9 +209,9 @@
         const live = p.aos <= now && p.los > now;
         const cls = ['p', p.max < LOW_EL ? 'low' : '', p === selected ? 'sel' : '', live ? 'live' : ''].join(' ');
         html += `<tr class="${cls}" data-i="${i}">
-          <td class="t">${live ? 'ahora' : hhmm(new Date(p.aos))}</td>
+          <td class="t">${live ? '<span>ahora</span>' : hhmm(new Date(p.aos))}</td>
           <td class="sn">${window.SAT_EMBLEM(p.sat.id)}${esc(p.sat.name)}</td>
-          <td><span class="el"><span class="bar"><i style="width:${Math.min(100, p.max / 90 * 100).toFixed(0)}%"></i></span>${Math.round(p.max)}°</span></td>
+          <td><span class="el"><span class="bar"><i style="width:${Math.min(100, p.max / 90 * 100).toFixed(0)}%"></i></span>${num(p.max, 1)}°</span></td>
           <td class="r">${Math.round((p.los - p.aos) / 60000)}′</td>
           <td class="r">${card(p.azA)}→${card(p.azL)}</td>
           <td class="lt">${icon(p.light)}</td></tr>`;
@@ -226,7 +227,7 @@
     $('list').innerHTML = html;
     $('list').scrollTop = keepScroll;
     $('list')._rows = list;
-    renderDetail(); drawMap();
+    renderDetail(); drawMap(); renderSky();
   }
   $('list').addEventListener('click', e => {
     if (e.target.closest('#chk')) { checkUpdate(true); return; }
@@ -234,7 +235,7 @@
     selected = $('list')._rows[+tr.dataset.i];
     document.querySelectorAll('tr.p.sel').forEach(x => x.classList.remove('sel'));
     tr.classList.add('sel');
-    renderDetail(); drawMap();
+    renderDetail(); drawMap(); renderSky();
   });
 
   // ------------------------------------------------------------------ ficha del satélite (página 2 del mapa)
@@ -244,7 +245,6 @@
     const ER = 6378.135, a = r.a * ER;
     return { per: a * (1 - r.ecco) - ER, apo: a * (1 + r.ecco) - ER, inc: r.inclo * R2D, min: 2 * Math.PI / r.no };
   }
-  const num = (x, d = 0) => x.toFixed(d).replace('.', ',');
   let cardFor = null;
   function renderCard(sat) {
     if (!sat || cardFor === sat.id) return;
@@ -263,8 +263,12 @@
   }
   $('pager').addEventListener('scroll', () => {
     const pg = $('pager'), i = Math.round(pg.scrollLeft / Math.max(1, pg.clientWidth));
-    $('dots').querySelectorAll('i').forEach((d, k) => d.classList.toggle('on', k === i));
+    $('tabs').querySelectorAll('button').forEach((d, k) => d.classList.toggle('on', k === i));
   }, { passive: true });
+  $('tabs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    $('pager').scrollTo({ left: +b.dataset.p * $('pager').clientWidth, behavior: 'smooth' });
+  });
 
   function renderDetail() {
     const p = selected;
@@ -272,15 +276,73 @@
     if (!p) { $('detail').innerHTML = ''; return; }
     const now = Date.now(), live = p.aos <= now && p.los > now;
     const s = p.sat, extra = (s.tx || []).filter(t => Math.abs(t.f - s.main) > 0.002).slice(0, 2).map(t => `${mhz(t.f)} ${t.mode}`).join(' · ');
-    $('detail').innerHTML = `
-      <div class="l1"><b>${esc(s.name)}</b><span>${esc(fDayShort.format(new Date(p.aos)))} · ${hhmm(new Date(p.aos))}–${hhmm(new Date(p.los))}</span>
-        <span class="when ${live ? 'live' : ''}">${live ? 'en curso' : until(p.aos - now)}</span></div>
-      <div class="l2">${icon(p.light, 'ico sm')} máx ${Math.round(p.max)}° · ${card(p.azA)}→${card(p.azL)} · <b>${mhz(s.main)} MHz</b> ${esc(s.use)}${extra ? ' · ' + esc(extra) : ''}</div>`;
+    $('detail').innerHTML = `<div class="dl">
+      <div class="l1"><b>${esc(s.name)}</b><span>${dayKey(new Date(p.aos)) === dayKey(new Date(now)) ? "" : esc(fDayShort.format(new Date(p.aos))) + " · "}${hms(new Date(p.aos))}–${hms(new Date(p.los))}</span></div>
+      <div class="l2">${icon(p.light, 'ico sm')} máx ${num(p.max, 1)}° · ${card(p.azA)}→${card(p.azL)} · <b>${mhz(s.main)} MHz</b> ${esc(s.use)}${extra ? ' · ' + esc(extra) : ''}</div></div>
+      <div class="cd ${live ? 'live' : ''}" id="cd"><small>${live ? 'en curso · LOS' : 'AOS'}</small><b></b></div>`;
+    tick();
+  }
+  // la cuenta atrás se actualiza cada segundo sin repintar nada más; al empezar o acabar la pasada, se repinta la tabla
+  function tick() {
+    const p = selected, el = $('cd'); if (!p || !el) return;
+    const now = Date.now(), live = p.aos <= now && p.los > now;
+    if (now >= p.los || live !== el.classList.contains('live')) { renderList(false); return; }
+    el.querySelector('b').textContent = tminus((live ? p.los : p.aos) - now);
+  }
+  setInterval(tick, 1000);
+  new ResizeObserver(() => { if (catalog) renderSky(); }).observe($('sky'));
+
+  // ------------------------------------------------------------------ cielo (página 3): recorrido polar y perfil de elevación
+  function renderSky() {
+    const box = $('sky'), p = selected, rec = p && recs.get(p.sat.id);
+    if (!rec) { box.innerHTML = '<div class="empty">Elige una pasada en la tabla.</div>'; return; }
+    const N = 80, pts = [];
+    for (let i = 0; i <= N; i++) { const t = p.aos + (p.los - p.aos) * i / N, l = look(rec, new Date(t)); if (l) pts.push({ t, el: Math.max(0, l.el), az: l.az }); }
+    const now = Date.now(), live = p.aos <= now && p.los > now;
+    // tamaños reales de la página: el polar es cuadrado; el perfil ocupa el resto
+    const bw = (box.clientWidth || 375) - 32, bh = box.clientHeight || 220, ps = Math.round(Math.min(bh, bw * 0.46));
+    // polar: el centro es el cenit, el borde el horizonte; N arriba, E a la derecha
+    const R = 50, C = 62;
+    const P = (az, el) => { const r = R * (90 - el) / 90; return [C + r * Math.sin(az * D2R), C - r * Math.cos(az * D2R)]; };
+    const f = n => n.toFixed(1);
+    const path = pts.map((q, i) => (i ? 'L' : 'M') + P(q.az, q.el).map(f).join(' ')).join('');
+    const [ax, ay] = P(p.azA, 0), [lx, ly] = P(p.azL, 0), mx = pts.reduce((a, b) => b.el > a.el ? b : a), [tx, ty] = P(mx.az, mx.el);
+    const b = pts[pts.length - 2], [bx, by] = P(b.az, b.el), ang = Math.atan2(ly - by, lx - bx);
+    const arrow = `M${f(lx + 5 * Math.cos(ang))} ${f(ly + 5 * Math.sin(ang))}L${f(lx + 4.5 * Math.cos(ang + 2.5))} ${f(ly + 4.5 * Math.sin(ang + 2.5))}L${f(lx + 4.5 * Math.cos(ang - 2.5))} ${f(ly + 4.5 * Math.sin(ang - 2.5))}Z`;
+    let nowMark = '';
+    if (live) { const l = look(rec, new Date(now)); if (l) { const [nx, ny] = P(l.az, Math.max(0, l.el)); nowMark = `<circle cx="${f(nx)}" cy="${f(ny)}" r="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.4"/>`; } }
+    const lab = (az, txt) => { const [x, y] = P(az, -9); return `<text x="${f(x)}" y="${f(y + 3)}" text-anchor="middle" class="k">${txt}</text>`; };
+    const polar = `<svg class="polar" viewBox="0 0 124 124" width="${ps}" height="${ps}" role="img" aria-label="Recorrido en el cielo">
+      <circle class="g" cx="${C}" cy="${C}" r="${R}"/><circle class="g" cx="${C}" cy="${C}" r="${f(R * 2 / 3)}"/><circle class="g" cx="${C}" cy="${C}" r="${f(R / 3)}"/>
+      <path class="g" d="M${C - R} ${C}H${C + R}M${C} ${C - R}V${C + R}"/>
+      <text x="${C + 2}" y="${f(C - R / 3 - 2)}">60°</text><text x="${C + 2}" y="${f(C - R * 2 / 3 - 2)}">30°</text>
+      ${lab(0, 'N')}${lab(90, 'E')}${lab(180, 'S')}${lab(270, 'O')}
+      <path class="trk" d="${path}"/><path d="${arrow}" fill="var(--ink)"/>
+      <circle cx="${f(ax)}" cy="${f(ay)}" r="2.6" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.2"/>
+      <circle cx="${f(tx)}" cy="${f(ty)}" r="2.4" fill="var(--ink)"/>
+      ${nowMark}</svg>`;
+    // perfil: elevación frente al tiempo
+    const W = Math.max(120, bw - ps - 10), H = bh, l0 = 24, r0 = 6, t0 = 10, b0 = 26, iw = W - l0 - r0, ih = H - t0 - b0;
+    const top = Math.max(30, Math.ceil(p.max / 15) * 15);
+    const xs = t => l0 + (t - p.aos) / (p.los - p.aos) * iw, ys = e => t0 + ih - e / top * ih;
+    let grid = '';
+    for (let e = 0; e <= top; e += 15) grid += `<path class="g" d="M${l0} ${f(ys(e))}H${l0 + iw}"/><text x="${l0 - 3}" y="${f(ys(e) + 3)}" text-anchor="end">${e}°</text>`;
+    const good = LOW_EL <= top ? `<path class="g2" d="M${l0} ${f(ys(LOW_EL))}H${l0 + iw}"/><text x="${l0 + 3}" y="${f(ys(LOW_EL) - 3)}">buena señal</text>` : '';
+    const line = pts.map((q, i) => (i ? 'L' : 'M') + f(xs(q.t)) + ' ' + f(ys(q.el))).join('');
+    const area = `${line}L${f(xs(p.los))} ${f(ys(0))}L${f(xs(p.aos))} ${f(ys(0))}Z`;
+    const tl = (t, txt, anchor) => `<text x="${f(xs(t))}" y="${H - 14}" text-anchor="${anchor}">${txt}</text><text x="${f(xs(t))}" y="${H - 4}" text-anchor="${anchor}" class="k">${hhmm(new Date(t))}</text>`;
+    const nowLine = live ? `<path class="now" d="M${f(xs(now))} ${t0}V${t0 + ih}"/>` : '';
+    const prof = `<svg class="prof" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Perfil de elevación">
+      ${grid}${good}<path class="area" d="${area}"/><path class="trk" d="${line}"/>${nowLine}
+      <circle cx="${f(xs(p.tca))}" cy="${f(ys(p.max))}" r="2.4" fill="var(--ink)"/>
+      <text x="${f(xs(p.tca))}" y="${f(ys(p.max) - 5)}" text-anchor="middle" class="k">${num(p.max, 1)}°</text>
+      ${tl(p.aos, 'AOS ' + card(p.azA), 'start')}${tl(p.tca, 'máx', 'middle')}${tl(p.los, 'LOS ' + card(p.azL), 'end')}</svg>`;
+    box.innerHTML = polar + prof;
   }
 
   // ------------------------------------------------------------------ mapa de puntos
   const cv = $('map'), ctx = cv.getContext('2d');
-  const INK = '29,28,26', PAPER = '#efece5', ACC = '#e8ae17';   // ACC = --acc (amarillo sodio)
+  const INK = '29,28,26', PAPER = '#efece5';
   function drawMap() {
     const dpr = window.devicePixelRatio || 1, cw = cv.clientWidth, ch = cv.clientHeight;
     if (!cw || !ch) return;
@@ -303,7 +365,7 @@
       const a = lat * D2R, b = lon * D2R;
       return Math.acos(Math.min(1, Math.sin(a) * Math.sin(foot.lat) + Math.cos(a) * Math.cos(foot.lat) * Math.cos(b - foot.lon))) < foot.r;
     };
-    // día y noche en el instante de la culminación (o ahora): la noche es tierra más densa y mar punteado
+    // día y noche en el instante de la culminación (o ahora): de día la tierra apenas se ve; de noche es densa y el mar se puntea
     const sun = sunRaDec(new Date(selected ? selected.tca : Date.now()));
     const r = Math.max(0.8, L.step * k * 0.3);
     L.rows.forEach((row, j) => {
@@ -311,11 +373,11 @@
       for (let i = 0; i < row.length; i++) {
         const lon = -180 + L.step / 2 + i * L.step, night = sunSin(sun, lat, lon) < 0;
         if (row.charCodeAt(i) === 49) {
-          ctx.fillStyle = `rgba(${INK},${inFoot(lat, lon) ? 0.62 : night ? 0.36 : 0.18})`;
+          ctx.fillStyle = `rgba(${INK},${inFoot(lat, lon) ? 0.9 : night ? 0.5 : 0.13})`;
           ctx.beginPath(); ctx.arc(X(lon), Y(lat), r, 0, 7); ctx.fill();
-        } else if (night && (i + j) % 3 === 0) {
-          ctx.fillStyle = `rgba(${INK},.16)`;
-          ctx.beginPath(); ctx.arc(X(lon), Y(lat), r * 0.45, 0, 7); ctx.fill();
+        } else if (night && (i + j) % 2 === 0) {
+          ctx.fillStyle = `rgba(${INK},.26)`;
+          ctx.beginPath(); ctx.arc(X(lon), Y(lat), r * 0.5, 0, 7); ctx.fill();
         }
       }
     });
@@ -338,9 +400,9 @@
       let run = [];
       const flush = () => {
         if (run.length > 1) {
-          // tramo visible: tinta con alma amarilla
-          ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 3.8; polyline(run, X, Y);
-          ctx.strokeStyle = ACC; ctx.lineWidth = 1.8; polyline(run, X, Y);
+          // tramo visible: halo de papel y trazo grueso de tinta
+          ctx.strokeStyle = PAPER; ctx.lineWidth = 5.5; polyline(run, X, Y);
+          ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 3; polyline(run, X, Y);
           const a = run[run.length - 2], b = run[run.length - 1];   // flecha en el sentido de avance
           if (Math.abs(b.lon - a.lon) < 180) {
             const ang = Math.atan2(Y(b.lat) - Y(a.lat), X(b.lon) - X(a.lon)), x = X(b.lon), y = Y(b.lat);
@@ -359,8 +421,8 @@
       const c = subpoint(rec, new Date(selected.tca));
       if (c) {
         ctx.fillStyle = PAPER; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 6, 0, 7); ctx.fill();
-        ctx.fillStyle = ACC; ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 1.3;
-        ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 3.8, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = `rgb(${INK})`; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 4.4, 0, 7); ctx.fill();
+        ctx.fillStyle = PAPER; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 1.5, 0, 7); ctx.fill();
       }
     }
 
@@ -464,16 +526,24 @@
     } finally { installing = false; }
   }
 
+  // cabecera técnica: estación, satélites y antigüedad del TLE más viejo
+  function metaLine() {
+    const ages = [...recs.values()].map(r => (Date.now() - (r.jdsatepoch - 2440587.5) * 86400000) / 86400000);
+    const tle = ages.length ? `TLE≤${num(Math.max(...ages), 1)} d` : 'TLE —';
+    return `ZGZ ${num(STATION.lat, 2)}N ${num(Math.abs(STATION.lon), 2)}O · ${recs.size} SAT · ${tle}`;
+  }
+
   // ------------------------------------------------------------------ arranque
   async function start(fresh) {
     const c = await loadCatalog();
     if (!c) { $('list').innerHTML = '<div class="empty">Sin conexión y sin datos guardados. Abre la app con Internet una vez.</div>'; return; }
     useCatalog(c);
-    $('where').textContent = `Поехали · ${STATION.name}`;
+    $('where').textContent = metaLine();
     renderChips();
     compute();
     renderList(fresh);
-    if (location.hash === '#ficha') requestAnimationFrame(() => $('pager').scrollTo({ left: $('pager').clientWidth }));   // para capturas
+    const pg = { '#ficha': 1, '#cielo': 2 }[location.hash];   // para capturas
+    if (pg) requestAnimationFrame(() => $('pager').scrollTo({ left: pg * $('pager').clientWidth }));
   }
   document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.days === days)));
   $('list').innerHTML = '<div class="empty">Calculando pasadas…</div>';

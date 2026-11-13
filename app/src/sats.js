@@ -1,6 +1,6 @@
 // Fichas de los satélites: datos e imagen en pixel art (src/px, generada con make-pixel.py).
 // · emb-*.png   emblema 16×16 propio: filtros, tabla y ficha cuando no hay foto libre
-// · foto-*.png  foto real libre convertida a 1 bit + amarillo: la ficha
+// · foto-*.png  foto real libre convertida a 1 bit (paneles en damero gris): la ficha
 // La órbita (altura, inclinación y periodo) no se escribe aquí: la app la calcula del TLE actual.
 (() => {
   'use strict';

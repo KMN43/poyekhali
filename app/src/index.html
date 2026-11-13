@@ -12,17 +12,21 @@
   <section class="top">
     <header>
       <svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#logo"/></svg>
-      <div class="ttl"><b>Poyekhali</b><span id="where">Zaragoza</span></div>
+      <div class="ttl"><b>Poyekhali<small>Поехали</small></b><span class="meta" id="where">Zaragoza</span></div>
       <div class="seg" role="group" aria-label="Días">
         <button data-days="7" aria-pressed="true">7 d</button><button data-days="14" aria-pressed="false">14 d</button>
       </div>
     </header>
-    <!-- desliza: mapa ↔ ficha del satélite -->
+    <nav class="tabs" id="tabs" aria-label="Páginas">
+      <button class="on" data-p="0"><b>01</b>Mapa</button><button data-p="1"><b>02</b>Ficha</button><button data-p="2"><b>03</b>Cielo</button>
+      <span class="sp"></span><span class="prec">±1 s</span>
+    </nav>
+    <!-- desliza: mapa ↔ ficha del satélite ↔ cielo -->
     <div class="pager" id="pager">
       <div class="page"><canvas id="map" aria-label="Mapa del mundo con la trayectoria de la pasada elegida"></canvas></div>
       <div class="page card" id="card" aria-label="Ficha del satélite"></div>
+      <div class="page sky" id="sky" aria-label="Cielo: recorrido de la pasada y perfil de elevación"></div>
     </div>
-    <div class="dots" id="dots" aria-hidden="true"><i class="on"></i><i></i></div>
     <div id="detail" class="detail" aria-live="polite"></div>
     <div id="chips" class="chips" role="group" aria-label="Satélites"></div>
     <div id="upd" class="upd" hidden></div>

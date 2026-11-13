@@ -27,6 +27,10 @@ mkdirSync(join(WWW, 'fonts'), { recursive: true });
 for (const f of ['latin-400', 'latin-500', 'latin-600', 'latin-ext-400', 'cyrillic-400', 'cyrillic-500']) {
   cpSync(join(HERE, 'node_modules', '@fontsource', 'fira-code', 'files', `fira-code-${f}-normal.woff2`), join(WWW, 'fonts', `fira-code-${f}-normal.woff2`));
 }
+// Space Grotesk (título y cuenta atrás)
+for (const w of ['500', '600']) {
+  cpSync(join(HERE, 'node_modules', '@fontsource', 'space-grotesk', 'files', `space-grotesk-latin-${w}-normal.woff2`), join(WWW, 'fonts', `space-grotesk-latin-${w}-normal.woff2`));
+}
 
 let html = readFileSync(join(WWW, 'index.html'), 'utf8');
 html = html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n<script>window.APP_VERSION = '${VERSION}';</script>\n<script src="capacitor.js"></script>`);

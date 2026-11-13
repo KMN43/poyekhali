@@ -2,7 +2,7 @@
     python make-pixel.py
 
 A) foto-*.png: fotos libres de Wikimedia Commons reducidas a 1 bit (tinta/papel, trama Bayer 4×4) con los
-   paneles solares (píxeles saturados) en amarillo sodio. Las fotos originales se descargan a .pxcache/ (no se sube).
+   paneles solares (píxeles saturados) en gris de damero (50 % tinta), para distinguirlos sin color. Las fotos originales se descargan a .pxcache/ (no se sube).
 B) emb-*.png: emblemas de 16×16 dibujados a mano o con primitivas.
 Las imágenes se guardan a 1× y la app las escala con image-rendering: pixelated.
 """
@@ -17,7 +17,7 @@ OUT = os.path.join(HERE, "src", "px")
 CACHE = os.path.join(HERE, ".pxcache")
 os.makedirs(OUT, exist_ok=True)
 os.makedirs(CACHE, exist_ok=True)
-PAPER, INK, ACC = (239, 236, 229), (29, 28, 26), (232, 174, 23)
+PAPER, INK = (239, 236, 229), (29, 28, 26)   # monocromo: el gris es un damero tinta/papel
 BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
 TH = "https://thumb.wikimedia.org/wikipedia/commons/thumb/"
 
@@ -58,14 +58,14 @@ def photo(name, url, crop, invert, W, cut, gamma):
             if lum > cut:
                 lum = 1.0
             thr = (BAYER[y % 4][x % 4] + 0.5) / 16
-            if s > 0.38 and v > 0.18 and lum < 0.92:   # paneles solares → amarillo
-                op[x, y] = ACC if lum < thr + 0.25 else PAPER
+            if s > 0.38 and v > 0.18 and lum < 0.92:   # paneles solares → damero
+                op[x, y] = INK if (x + y) % 2 == 0 else PAPER
             else:
                 op[x, y] = INK if lum < thr else PAPER
     out.save(os.path.join(OUT, f"foto-{name}.png"))
 
 
-# ---------------------------------------------------------------- emblemas ('.' papel, '#' tinta, 'y' amarillo)
+# ---------------------------------------------------------------- emblemas ('.' papel, '#' tinta, 'y' damero gris)
 EMB = {
     "meteor": [
         "................", "................", "......####......", ".yyyy.#..#.yyyy.", ".yyyy.#..#.yyyy.",
@@ -109,7 +109,7 @@ def rs44():
         put(x, 6); put(x, 9)
     for y in (7, 8):
         put(2, y); put(6, y)
-    for x in range(9, 13):           # satélite: caja con panel amarillo
+    for x in range(9, 13):           # satélite: caja con panel en damero
         put(x, 5); put(x, 10)
     for y in range(5, 11):
         put(9, y); put(12, y)
@@ -123,7 +123,7 @@ def rs44():
 
 
 EMB["rs44"] = rs44()
-COL = {".": PAPER, "#": INK, "y": ACC}
+COL = {".": PAPER, "#": INK}
 
 if __name__ == "__main__":
     for k, rows in EMB.items():
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         im = Image.new("RGB", (16, 16), PAPER)
         for y, r in enumerate(rows):
             for x, c in enumerate(r):
-                im.putpixel((x, y), COL[c])
+                im.putpixel((x, y), (INK if (x + y) % 2 == 0 else PAPER) if c == "y" else COL[c])
         im.save(os.path.join(OUT, f"emb-{k}.png"))
     for k, v in PHOTOS.items():
         photo(k, *v)
