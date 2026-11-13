@@ -219,8 +219,38 @@
     renderDetail(); drawMap();
   });
 
+  // ------------------------------------------------------------------ ficha del satélite (página 2 del mapa)
+  // órbita calculada del TLE actual: perigeo/apogeo, inclinación y periodo
+  function orbitOf(id) {
+    const r = recs.get(id); if (!r) return null;
+    const ER = 6378.135, a = r.a * ER;
+    return { per: a * (1 - r.ecco) - ER, apo: a * (1 + r.ecco) - ER, inc: r.inclo * R2D, min: 2 * Math.PI / r.no };
+  }
+  const num = (x, d = 0) => x.toFixed(d).replace('.', ',');
+  let cardFor = null;
+  function renderCard(sat) {
+    if (!sat || cardFor === sat.id) return;
+    cardFor = sat.id;
+    const info = window.SAT_INFO[sat.id] || { title: sat.name, org: '—', flag: '', kind: '', year: '—', sends: sat.use, purpose: '—' };
+    const o = orbitOf(sat.id);
+    const alt = !o ? '—' : Math.abs(o.apo - o.per) < 40 ? `~${num((o.apo + o.per) / 2)} km` : `${num(o.per)}–${num(o.apo)} km`;
+    $('card').innerHTML = `<div class="bpw">${window.SAT_BLUEPRINT(sat.id)}</div>
+      <div class="info"><h2>${esc(info.title)}</h2><div class="org">${esc(info.org)}${info.flag ? ' · ' + esc(info.flag) : ''}</div>
+        <dl>
+          <dt>Órbita</dt><dd>${esc(info.kind)}${o ? ` · ${alt} · ${num(o.inc, 1)}° · ${num(o.min)} min` : ''}</dd>
+          <dt>Lanzamiento</dt><dd>${esc(info.year)}</dd>
+          <dt>Qué envía</dt><dd>${esc(info.sends)}</dd>
+          <dt>Para qué sirve</dt><dd>${esc(info.purpose)}</dd>
+        </dl>${info.note ? `<div class="note">${esc(info.note)}</div>` : ''}</div>`;
+  }
+  $('pager').addEventListener('scroll', () => {
+    const pg = $('pager'), i = Math.round(pg.scrollLeft / Math.max(1, pg.clientWidth));
+    $('dots').querySelectorAll('i').forEach((d, k) => d.classList.toggle('on', k === i));
+  }, { passive: true });
+
   function renderDetail() {
     const p = selected;
+    renderCard(p ? p.sat : catalog.sats.find(s => s.id === pick) || catalog.sats[0]);
     if (!p) { $('detail').innerHTML = ''; return; }
     const now = Date.now(), live = p.aos <= now && p.los > now;
     const s = p.sat, extra = (s.tx || []).filter(t => Math.abs(t.f - s.main) > 0.002).slice(0, 2).map(t => `${mhz(t.f)} ${t.mode}`).join(' · ');
@@ -417,6 +447,7 @@
     renderChips();
     compute();
     renderList(fresh);
+    if (location.hash === '#ficha') requestAnimationFrame(() => $('pager').scrollTo({ left: $('pager').clientWidth }));   // para capturas
   }
   document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.days === days)));
   $('list').innerHTML = '<div class="empty">Calculando pasadas…</div>';

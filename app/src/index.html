@@ -17,7 +17,12 @@
         <button data-days="7" aria-pressed="true">7 d</button><button data-days="14" aria-pressed="false">14 d</button>
       </div>
     </header>
-    <div class="mapwrap"><canvas id="map" aria-label="Mapa del mundo con la trayectoria de la pasada elegida"></canvas></div>
+    <!-- desliza: mapa ↔ ficha del satélite -->
+    <div class="pager" id="pager">
+      <div class="page"><canvas id="map" aria-label="Mapa del mundo con la trayectoria de la pasada elegida"></canvas></div>
+      <div class="page card" id="card" aria-label="Ficha del satélite"></div>
+    </div>
+    <div class="dots" id="dots" aria-hidden="true"><i class="on"></i><i></i></div>
     <div id="detail" class="detail" aria-live="polite"></div>
     <div id="chips" class="chips" role="group" aria-label="Satélites"></div>
     <div id="upd" class="upd" hidden></div>
@@ -35,6 +40,7 @@
 <script src="land.js"></script>
 <script src="fallback.js"></script>
 <script src="logo.js"></script>
+<script src="sats.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

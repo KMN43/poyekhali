@@ -9,6 +9,7 @@ Próximas pasadas sobre **Zaragoza** de los satélites que se pueden **escuchar 
 Una sola pantalla:
 - **Arriba**: mapa del mundo de puntos con la trayectoria de la pasada elegida. La línea es muy fina donde el satélite no se ve y gruesa dentro del horizonte de visión. También muestra la huella de visibilidad y la estación.
 - **Abajo**: tabla de las pasadas de los próximos **7 o 14 días**: hora, elevación máxima, duración, ruta y luz (☀ día, amanecer, atardecer, ☾ noche).
+- **Desliza el mapa** para ver la **ficha del satélite**: a la izquierda un plano estilo blueprint (dibujo propio) y a la derecha quién lo gestiona, su órbita (calculada del TLE actual), el año de lanzamiento, qué datos envía y para qué sirve. Los datos están en `app/src/sats.js`.
 - **Filtro** de un satélite (o todos).
 - Tipografía **Fira Code** (SIL OFL 1.1), incluida en la app.
 

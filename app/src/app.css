@@ -46,9 +46,34 @@ header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 .seg button { padding: 5px 10px; font-size: 11px; color: var(--ink2); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
-/* mapa */
-.mapwrap { flex: 1; min-height: 0; position: relative; }
-#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* mapa y ficha: dos páginas que se deslizan */
+.pager { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; margin: 0 -16px; }
+.pager::-webkit-scrollbar { display: none; }
+.page { flex: 0 0 100%; min-width: 0; position: relative; scroll-snap-align: start; scroll-snap-stop: always; padding: 0 16px; }
+#map { position: absolute; inset: 0 16px; width: calc(100% - 32px); height: 100%; display: block; }
+.dots { display: flex; justify-content: center; gap: 6px; height: 6px; margin-top: -2px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ink3); transition: background .2s, transform .2s; }
+.dots i.on { background: var(--ink); transform: scale(1.15); }
+
+/* ficha: plano a la izquierda, datos a la derecha */
+.card { display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; align-items: stretch; overflow: hidden; }
+.card > * { min-width: 0; }
+.card .bpw { min-height: 0; display: flex; align-items: center; justify-content: center; }
+.bp { width: 100%; height: 100%; max-height: 100%; color: var(--ink); }
+.bp .bpgrid { fill: none; stroke: currentColor; stroke-opacity: .08; stroke-width: .5; }
+.bp .bpframe { stroke: currentColor; stroke-opacity: .28; stroke-width: .6; }
+.bp .bpl { fill: none; stroke: currentColor; stroke-width: 1.05; stroke-linejoin: round; stroke-linecap: round; }
+.bp .bpt { fill: none; stroke: currentColor; stroke-opacity: .55; stroke-width: .45; }
+.bp .bpdot { fill: currentColor; stroke: none; }
+.bp .bpx { fill: currentColor; fill-opacity: .72; stroke: none; font: 500 5.6px 'Fira Code', monospace; letter-spacing: .02em; }
+.card .info { min-height: 0; overflow-y: auto; font-size: 10.5px; line-height: 1.35; padding: 2px 0 6px; scrollbar-width: none; }
+.card .info::-webkit-scrollbar { display: none; }
+.card .info h2 { margin: 0 0 1px; font-size: 13px; font-weight: 600; line-height: 1.2; }
+.card .info .org { color: var(--ink2); margin-bottom: 6px; }
+.card dl { margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.card dt { font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
+.card dd { margin: 0; }
+.card .note { margin-top: 6px; color: var(--ink2); border-left: 2px solid var(--ink3); padding-left: 6px; }
 
 /* detalle de la pasada elegida */
 .detail { min-height: 38px; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
