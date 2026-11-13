@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efece5">
+<title>Pasadas</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="app">
+  <section class="top">
+    <header>
+      <svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#logo"/></svg>
+      <div class="ttl"><b>Pasadas</b><span id="where">Zaragoza</span></div>
+      <div class="seg" role="group" aria-label="Días">
+        <button data-days="7" aria-pressed="true">7 d</button><button data-days="14" aria-pressed="false">14 d</button>
+      </div>
+    </header>
+    <div class="mapwrap"><canvas id="map" aria-label="Mapa del mundo con la trayectoria de la pasada elegida"></canvas></div>
+    <div id="detail" class="detail" aria-live="polite"></div>
+    <div id="chips" class="chips" role="group" aria-label="Satélites"></div>
+    <div id="upd" class="upd" hidden></div>
+  </section>
+  <section class="bottom" id="list" aria-label="Próximas pasadas"></section>
+</main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="logo"></g>
+  </defs>
+</svg>
+
+<script src="vendor/satellite.min.js"></script>
+<script src="land.js"></script>
+<script src="fallback.js"></script>
+<script src="logo.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

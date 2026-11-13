@@ -1,0 +1,41 @@
+<p align="center"><img src="docs/logo.png" width="140" alt="Logo de Pasadas"></p>
+
+# Pasadas
+
+Próximas pasadas sobre **Zaragoza** de los satélites que se pueden **escuchar con un RTL-SDR** y antenas sencillas (bandas de 2 m y 70 cm): Meteor-M (imágenes LRPT), la ISS y satélites de radioaficionado.
+
+Una sola pantalla:
+- **Arriba**: mapa del mundo de puntos con la trayectoria de la pasada elegida, la huella de visibilidad y la estación.
+- **Abajo**: tabla de las pasadas de los próximos **7 o 14 días** (hora, elevación máxima, duración, ruta y día/noche).
+- **Filtro** de satélites.
+
+## Instalar en Android
+Escanea el QR o abre el enlace en el móvil:
+
+<p><img src="docs/qr-apk.png" width="220" alt="QR de descarga de la APK"></p>
+
+**https://github.com/KMN43/pasadas/releases/latest/download/Pasadas.apk**
+
+La primera vez Android pide *Permitir de esta fuente*. Cuando hay una versión nueva, la app lo avisa al abrirse.
+
+## Cómo funciona
+| Pieza | Qué hace |
+|---|---|
+| `worker/` | **Cloudflare Worker** (`https://pasadas.biblioscan-galaxia.workers.dev/api/catalog`). Junta los TLE actuales (SatNOGS DB, con CelesTrak de reserva) y los transmisores activos en 136–150 y 430–440 MHz. Descarta los satélites sin transmisor vivo o con TLE de más de 30 días. Caché en el borde de 1 h |
+| `app/` | App **Capacitor**. Calcula las pasadas en el móvil con SGP4 (`satellite.js`) y guarda el último catálogo para funcionar sin conexión |
+| `app/make-land.mjs` | Genera la malla de puntos del mapa (Natural Earth 110m, cada 2°) |
+| `app/make-icons.py` | Logo → iconos de Android, pantalla de arranque y `docs/logo.*` |
+
+## Desarrollo
+```bash
+# Worker
+cd worker && npm install && npx wrangler deploy
+
+# App
+cd app && npm install
+npm run build:web          # www/ para probar en el navegador
+npm run release -- minor --notes "Qué cambia"   # versión nueva: APK firmada + Release en GitHub
+```
+Requisitos: Node.js, Java 21, SDK de Android y `gh` con sesión iniciada. La clave de firma (`app/pasadas-release.jks` + `app/keystore.properties`) **no está en el repositorio**.
+
+El proyecto debe estar en una ruta **sin tildes**: Gradle no compila en rutas con caracteres no ASCII en Windows.

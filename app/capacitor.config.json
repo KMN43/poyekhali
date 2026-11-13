@@ -1,0 +1,8 @@
+{
+  "appId": "com.kmn43.pasadas",
+  "appName": "Pasadas",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#efece5"
+  }
+}

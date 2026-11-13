@@ -1,0 +1,11 @@
+node_modules/
+.wrangler/
+.claude/
+
+# generado al compilar
+app/www/
+*.apk
+
+# firma de la app: NUNCA subir (guárdala en un sitio seguro: sin ella no se pueden publicar actualizaciones)
+*.jks
+keystore.properties

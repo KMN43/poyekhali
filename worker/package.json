@@ -1,0 +1,12 @@
+{
+  "name": "pasadas-worker",
+  "private": true,
+  "description": "Pasadas: catálogo de satélites escuchables con TLE y transmisores (Cloudflare Worker)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
