@@ -23,7 +23,7 @@
   let passes = [];             // todas las calculadas
   let selected = null;         // pasada elegida
   let days = ls.get('days', 7);
-  let chosen = new Set(ls.get('sats', []));   // vacío = todos
+  let pick = ls.get('pick', '*');   // un solo satélite (su id) o '*' = todos
   let computedAt = 0;
   const obs = { longitude: STATION.lon * D2R, latitude: STATION.lat * D2R, height: STATION.alt / 1000 };
 
@@ -31,7 +31,7 @@
   const tz = 'Europe/Madrid';
   const fTime = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: tz });
   const fDay = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: tz });
-  const fDayShort = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz });
+  const fDayShort = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', timeZone: tz });
   const dayKey = d => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(d);
   const hhmm = d => fTime.format(d);
   const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
@@ -43,16 +43,24 @@
     if (m < 60) return `en ${m} min`;
     const h = Math.floor(m / 60), r = m % 60;
     if (h < 24) return `en ${h} h${r ? ' ' + r + ' min' : ''}`;
-    const d = Math.floor(h / 24);
-    return `en ${d} d ${h % 24} h`;
+    return `en ${Math.floor(h / 24)} d ${h % 24} h`;
   }
+
+  // ------------------------------------------------------------------ iconos de luz (16×16, trazo)
+  const ICON = {
+    day: '<circle cx="8" cy="8" r="2.7"/><path d="M8 1.6v1.6M8 12.8v1.6M1.6 8h1.6M12.8 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M3.5 12.5l1.1-1.1M11.4 4.6l1.1-1.1"/>',
+    dawn: '<path d="M1.8 12h12.4M4.4 12a3.6 3.6 0 0 1 7.2 0M6.4 5.4 8 3.8l1.6 1.6M8 3.8v3.4"/>',
+    dusk: '<path d="M1.8 12h12.4M4.4 12a3.6 3.6 0 0 1 7.2 0M6.4 5.6 8 7.2l1.6-1.6M8 3.8v3.4"/>',
+    night: '<path d="M10.6 2.4a5.7 5.7 0 1 0 3 9.9 4.6 4.6 0 0 1-3-9.9Z"/>',
+  };
+  const LIGHT_TXT = { day: 'de día', dawn: 'amanecer', dusk: 'atardecer', night: 'de noche' };
+  const icon = (k, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 16 16" aria-label="${LIGHT_TXT[k]}" role="img">${ICON[k]}</svg>`;
 
   // ------------------------------------------------------------------ órbitas
   function look(rec, date) {
     const pv = S.propagate(rec, date);
     if (!pv || !pv.position) return null;
-    const gmst = S.gstime(date);
-    const la = S.ecfToLookAngles(obs, S.eciToEcf(pv.position, gmst));
+    const la = S.ecfToLookAngles(obs, S.eciToEcf(pv.position, S.gstime(date)));
     return { el: la.elevation * R2D, az: la.azimuth * R2D };
   }
   function subpoint(rec, date) {
@@ -79,8 +87,7 @@
       if (cur && e > cur.max) { cur.max = e; cur.tca = t; }
       if (cur && prevE >= 0 && e < 0) {
         cur.los = cross(prevT, t);
-        // afinar el máximo: sección áurea en ±1 paso
-        let a = cur.tca - STEP, b = cur.tca + STEP;
+        let a = cur.tca - STEP, b = cur.tca + STEP;   // afinar el máximo: sección áurea
         for (let i = 0; i < 20; i++) {
           const m1 = b - (b - a) / 1.618, m2 = a + (b - a) / 1.618;
           if (elAt(rec, m1) > elAt(rec, m2)) b = m2; else a = m1;
@@ -89,7 +96,7 @@
         cur.max = elAt(rec, cur.tca);
         if (cur.max >= MIN_EL) {
           const la = look(rec, new Date(cur.aos)), ll = look(rec, new Date(cur.los));
-          out.push({ sat, aos: cur.aos, los: cur.los, tca: cur.tca, max: cur.max, azA: la.az, azL: ll.az, sun: sunEl(new Date(cur.tca)) });
+          out.push({ sat, aos: cur.aos, los: cur.los, tca: cur.tca, max: cur.max, azA: la.az, azL: ll.az, light: light(cur.tca) });
         }
         cur = null;
       }
@@ -98,7 +105,7 @@
     return out;
   }
 
-  // elevación del Sol en la estación (fórmula de baja precisión, suficiente para día/noche)
+  // elevación del Sol en la estación (baja precisión, suficiente para la luz)
   function sunEl(date) {
     const d = date.getTime() / 86400000 - 10957.5;
     const g = (357.529 + 0.98560028 * d) * D2R, q = 280.459 + 0.98564736 * d;
@@ -106,6 +113,13 @@
     const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
     const ha = S.gstime(date) + STATION.lon * D2R - ra, la = STATION.lat * D2R;
     return Math.asin(Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(ha)) * R2D;
+  }
+  // día (Sol > 6°), noche (< −6°, fin del crepúsculo civil) y, entre medias, amanecer o atardecer
+  function light(t) {
+    const e = sunEl(new Date(t));
+    if (e > 6) return 'day';
+    if (e < -6) return 'night';
+    return sunEl(new Date(t + 15 * 60000)) > e ? 'dawn' : 'dusk';
   }
 
   function compute() {
@@ -134,24 +148,18 @@
     catalog = c;
     recs = new Map();
     for (const s of c.sats) { try { recs.set(s.id, S.twoline2satrec(s.tle[0], s.tle[1])); } catch {} }
-    // la selección guardada solo con satélites que siguen en el catálogo
-    chosen = new Set([...chosen].filter(id => recs.has(id)));
+    if (pick !== '*' && !recs.has(pick)) pick = '*';
   }
 
-  // ------------------------------------------------------------------ interfaz: filtro y días
+  // ------------------------------------------------------------------ interfaz: filtro (selección única) y días
   function renderChips() {
-    const all = !chosen.size;
-    $('chips').innerHTML = `<button class="chip all" aria-pressed="${all}" data-id="*">Todos</button>` +
-      catalog.sats.map(s => `<button class="chip" aria-pressed="${!all && chosen.has(s.id)}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('');
+    const chip = (id, name, cls = '') => `<button class="chip ${cls}" role="radio" aria-checked="${pick === id}" data-id="${esc(id)}">${esc(name)}</button>`;
+    $('chips').innerHTML = chip('*', 'Todos', 'all') + catalog.sats.map(s => chip(s.id, s.name)).join('');
   }
   $('chips').addEventListener('click', e => {
-    const b = e.target.closest('.chip'); if (!b) return;
-    const id = b.dataset.id;
-    if (id === '*') chosen.clear();
-    else if (chosen.has(id)) chosen.delete(id);
-    else chosen.add(id);
-    if (chosen.size === catalog.sats.length) chosen.clear();
-    ls.set('sats', [...chosen]);
+    const b = e.target.closest('.chip'); if (!b || b.dataset.id === pick) return;
+    pick = b.dataset.id;
+    ls.set('pick', pick);
     renderChips(); renderList(true);
   });
   document.querySelector('.seg').addEventListener('click', e => {
@@ -164,39 +172,46 @@
   // ------------------------------------------------------------------ interfaz: tabla
   const visible = () => {
     const now = Date.now(), end = now + days * 86400000;
-    return passes.filter(p => p.los > now && p.aos < end && (!chosen.size || chosen.has(p.sat.id)));
+    return passes.filter(p => p.los > now && p.aos < end && (pick === '*' || p.sat.id === pick));
   };
   function renderList(reselect) {
     const list = visible(), now = Date.now();
     if (reselect || !selected || !list.includes(selected)) selected = list[0] || null;
+    const keepScroll = $('list').scrollTop;
+    let html = '';
     if (!list.length) {
-      $('list').innerHTML = `<div class="empty">No hay pasadas por encima de ${MIN_EL}° con este filtro.</div>`;
-      renderDetail(); drawMap(); return;
+      html = `<div class="empty">No hay pasadas por encima de ${MIN_EL}° con este filtro.</div>`;
+    } else {
+      html = '<table><thead><tr><th>Hora</th><th>Satélite</th><th>Máx</th><th>Dur</th><th>Ruta</th><th>Luz</th></tr></thead><tbody>';
+      let lastDay = '';
+      list.forEach((p, i) => {
+        const k = dayKey(new Date(p.aos));
+        if (k !== lastDay) { lastDay = k; html += `<tr class="day"><td colspan="6">${esc(fDay.format(new Date(p.aos)))}</td></tr>`; }
+        const live = p.aos <= now && p.los > now;
+        const cls = ['p', p.max < LOW_EL ? 'low' : '', p === selected ? 'sel' : ''].join(' ');
+        html += `<tr class="${cls}" data-i="${i}">
+          <td class="t">${live ? 'ahora' : hhmm(new Date(p.aos))}</td>
+          <td>${esc(p.sat.name)}</td>
+          <td><span class="el"><span class="bar"><i style="width:${Math.min(100, p.max / 90 * 100).toFixed(0)}%"></i></span>${Math.round(p.max)}°</span></td>
+          <td class="r">${Math.round((p.los - p.aos) / 60000)}′</td>
+          <td class="r">${card(p.azA)}→${card(p.azL)}</td>
+          <td class="lt">${icon(p.light)}</td></tr>`;
+      });
+      html += '</tbody></table>';
     }
-    let html = '<table><thead><tr><th>Hora</th><th>Satélite</th><th>Máx</th><th>Dur</th><th>Ruta</th><th>Luz</th></tr></thead><tbody>';
-    let lastDay = '';
-    list.forEach((p, i) => {
-      const k = dayKey(new Date(p.aos));
-      if (k !== lastDay) { lastDay = k; html += `<tr class="day"><td colspan="6">${esc(fDay.format(new Date(p.aos)))}</td></tr>`; }
-      const live = p.aos <= now && p.los > now;
-      const cls = ['p', p.max < LOW_EL ? 'low' : '', p === selected ? 'sel' : ''].join(' ');
-      html += `<tr class="${cls}" data-i="${i}">
-        <td class="t">${live ? 'ahora' : hhmm(new Date(p.aos))}</td>
-        <td>${esc(p.sat.name)}</td>
-        <td><span class="el"><span class="bar"><i style="width:${Math.min(100, p.max / 90 * 100).toFixed(0)}%"></i></span>${Math.round(p.max)}°</span></td>
-        <td class="r">${Math.round((p.los - p.aos) / 60000)}′</td>
-        <td class="r">${card(p.azA)}→${card(p.azL)}</td>
-        <td class="sun" title="${p.sun > -6 ? 'de día' : 'de noche'}">${p.sun > -6 ? '○' : '●'}</td></tr>`;
-    });
-    html += '</tbody></table>';
     const age = catalog.updated ? Math.max(0, Math.round((now - Date.parse(catalog.updated)) / 3600000)) : null;
-    html += `<div class="foot">○ de día · ● de noche · solo pasadas por encima de ${MIN_EL}° · horas de ${esc(STATION.name)}<br>` +
-      `${catalog.sats.length} satélites escuchables · órbitas ${age == null ? '' : age < 1 ? 'actualizadas hace menos de 1 h' : `de hace ${age} h`} · v${esc(window.APP_VERSION || '')}</div>`;
+    html += `<div class="foot">
+      <div class="legend">${['day', 'dawn', 'dusk', 'night'].map(k => `<span>${icon(k)}${LIGHT_TXT[k]}</span>`).join('')}</div>
+      <div>solo pasadas por encima de ${MIN_EL}° · horas de ${esc(STATION.name)}</div>
+      <div>${catalog.sats.length} satélites escuchables · órbitas ${age == null ? '' : age < 1 ? 'de hace menos de 1 h' : `de hace ${age} h`}</div>
+      <button id="chk" class="lnk">v${esc(window.APP_VERSION || '')} · buscar actualizaciones</button></div>`;
     $('list').innerHTML = html;
+    $('list').scrollTop = keepScroll;
     $('list')._rows = list;
     renderDetail(); drawMap();
   }
   $('list').addEventListener('click', e => {
+    if (e.target.closest('#chk')) { checkUpdate(true); return; }
     const tr = e.target.closest('tr.p'); if (!tr) return;
     selected = $('list')._rows[+tr.dataset.i];
     document.querySelectorAll('tr.p.sel').forEach(x => x.classList.remove('sel'));
@@ -212,12 +227,12 @@
     $('detail').innerHTML = `
       <div class="l1"><b>${esc(s.name)}</b><span>${esc(fDayShort.format(new Date(p.aos)))} · ${hhmm(new Date(p.aos))}–${hhmm(new Date(p.los))}</span>
         <span class="when ${live ? 'live' : ''}">${live ? 'en curso' : until(p.aos - now)}</span></div>
-      <div class="l2">máx ${Math.round(p.max)}° · ${card(p.azA)}→${card(p.azL)} · <b>${mhz(s.main)} MHz</b> ${esc(s.use)}${extra ? ' · ' + esc(extra) : ''}</div>`;
+      <div class="l2">${icon(p.light, 'ico sm')} máx ${Math.round(p.max)}° · ${card(p.azA)}→${card(p.azL)} · <b>${mhz(s.main)} MHz</b> ${esc(s.use)}${extra ? ' · ' + esc(extra) : ''}</div>`;
   }
 
   // ------------------------------------------------------------------ mapa de puntos
   const cv = $('map'), ctx = cv.getContext('2d');
-  const INK = '29,28,26';
+  const INK = '29,28,26', PAPER = '#efece5';
   function drawMap() {
     const dpr = window.devicePixelRatio || 1, cw = cv.clientWidth, ch = cv.clientHeight;
     if (!cw || !ch) return;
@@ -228,10 +243,11 @@
     const k = Math.min(cw / 360, ch / latSpan), W = 360 * k, H = latSpan * k, ox = (cw - W) / 2, oy = (ch - H) / 2;
     const X = lon => ox + (lon + 180) * k, Y = lat => oy + (L.latN - lat) * k;
 
-    // huella de visibilidad del satélite (en la culminación): los puntos de tierra dentro se oscurecen
+    // horizonte de visión (en la culminación): los puntos de tierra dentro se oscurecen
     let foot = null;
-    if (selected) {
-      const rec = recs.get(selected.sat.id), sp = rec && subpoint(rec, new Date(selected.tca));
+    const rec = selected && recs.get(selected.sat.id);
+    if (rec) {
+      const sp = subpoint(rec, new Date(selected.tca));
       if (sp) foot = { lat: STATION.lat * D2R, lon: STATION.lon * D2R, r: Math.acos(RE / (RE + sp.h)) };
     }
     const inFoot = (lat, lon) => {
@@ -239,7 +255,6 @@
       const a = lat * D2R, b = lon * D2R;
       return Math.acos(Math.min(1, Math.sin(a) * Math.sin(foot.lat) + Math.cos(a) * Math.cos(foot.lat) * Math.cos(b - foot.lon))) < foot.r;
     };
-
     const r = Math.max(0.8, L.step * k * 0.3);
     L.rows.forEach((row, j) => {
       const lat = L.latN - L.step / 2 - j * L.step;
@@ -250,43 +265,45 @@
         ctx.beginPath(); ctx.arc(X(lon), Y(lat), r, 0, 7); ctx.fill();
       }
     });
-
-    // contorno de la huella (punteado)
     if (foot) {
       ctx.strokeStyle = `rgba(${INK},.4)`; ctx.lineWidth = 0.8; ctx.setLineDash([1.5, 3]);
-      polyline(circlePts(foot), X, Y, W); ctx.setLineDash([]);
+      polyline(circlePts(foot), X, Y); ctx.setLineDash([]);
     }
 
-    if (selected) {
-      const rec = recs.get(selected.sat.id), pts = [], pass = [];
-      for (let t = selected.tca - 50 * 60000; t <= selected.tca + 50 * 60000; t += 30000) {
+    if (rec) {
+      // trayectoria ±50 min: muy fina donde no se ve, gruesa dentro del horizonte (elevación > 0)
+      const pts = [];
+      for (let t = selected.tca - 50 * 60000; t <= selected.tca + 50 * 60000; t += 20000) {
         const sp = subpoint(rec, new Date(t)); if (!sp) continue;
+        sp.vis = elAt(rec, t) >= 0;
         pts.push(sp);
-        if (t >= selected.aos - 30000 && t <= selected.los + 30000) pass.push(sp);
       }
-      // la órbita completa, tenue y discontinua
-      ctx.strokeStyle = `rgba(${INK},.38)`; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
-      polyline(pts, X, Y, W); ctx.setLineDash([]);
-      // el tramo de la pasada, firme
-      ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
-      polyline(pass, X, Y, W);
-      // flecha al final del tramo
-      if (pass.length > 2) {
-        const a = pass[pass.length - 2], b = pass[pass.length - 1];
-        if (Math.abs(b.lon - a.lon) < 180) {
-          const ang = Math.atan2(Y(b.lat) - Y(a.lat), X(b.lon) - X(a.lon)), x = X(b.lon), y = Y(b.lat);
-          ctx.fillStyle = `rgb(${INK})`; ctx.beginPath();
-          ctx.moveTo(x + 6 * Math.cos(ang), y + 6 * Math.sin(ang));
-          ctx.lineTo(x + 5 * Math.cos(ang + 2.5), y + 5 * Math.sin(ang + 2.5));
-          ctx.lineTo(x + 5 * Math.cos(ang - 2.5), y + 5 * Math.sin(ang - 2.5));
-          ctx.fill();
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = `rgba(${INK},.55)`; ctx.lineWidth = 0.6;
+      polyline(pts, X, Y);
+      ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 2.6;
+      let run = [];
+      const flush = () => {
+        if (run.length > 1) {
+          polyline(run, X, Y);
+          const a = run[run.length - 2], b = run[run.length - 1];   // flecha en el sentido de avance
+          if (Math.abs(b.lon - a.lon) < 180) {
+            const ang = Math.atan2(Y(b.lat) - Y(a.lat), X(b.lon) - X(a.lon)), x = X(b.lon), y = Y(b.lat);
+            ctx.fillStyle = `rgb(${INK})`; ctx.beginPath();
+            ctx.moveTo(x + 6.5 * Math.cos(ang), y + 6.5 * Math.sin(ang));
+            ctx.lineTo(x + 5.5 * Math.cos(ang + 2.5), y + 5.5 * Math.sin(ang + 2.5));
+            ctx.lineTo(x + 5.5 * Math.cos(ang - 2.5), y + 5.5 * Math.sin(ang - 2.5));
+            ctx.fill();
+          }
         }
-      }
+        run = [];
+      };
+      pts.forEach(p => { if (p.vis) run.push(p); else flush(); });
+      flush();
       // satélite en la culminación
       const c = subpoint(rec, new Date(selected.tca));
       if (c) {
-        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--paper') || '#efece5';
-        ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 5.5, 0, 7); ctx.fill();
+        ctx.fillStyle = PAPER; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 5.5, 0, 7); ctx.fill();
         ctx.fillStyle = `rgb(${INK})`; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 3.4, 0, 7); ctx.fill();
       }
     }
@@ -297,7 +314,7 @@
     ctx.beginPath(); ctx.arc(sx, sy, 4.5, 0, 7); ctx.stroke();
     ctx.fillStyle = `rgb(${INK})`; ctx.beginPath(); ctx.arc(sx, sy, 1.4, 0, 7); ctx.fill();
   }
-  function circlePts(f) {   // círculo de radio angular r alrededor de (lat, lon), en grados
+  function circlePts(f) {
     const out = [];
     for (let i = 0; i <= 120; i++) {
       const brg = i / 120 * 2 * Math.PI;
@@ -310,27 +327,85 @@
   function polyline(pts, X, Y) {   // corta la línea al cruzar el antimeridiano
     ctx.beginPath();
     pts.forEach((p, i) => {
-      if (i && Math.abs(p.lon - pts[i - 1].lon) > 180) ctx.moveTo(X(p.lon), Y(p.lat));
-      else if (i) ctx.lineTo(X(p.lon), Y(p.lat));
-      else ctx.moveTo(X(p.lon), Y(p.lat));
+      if (!i || Math.abs(p.lon - pts[i - 1].lon) > 180) ctx.moveTo(X(p.lon), Y(p.lat));
+      else ctx.lineTo(X(p.lon), Y(p.lat));
     });
     ctx.stroke();
   }
   new ResizeObserver(() => drawMap()).observe(cv);
 
-  // ------------------------------------------------------------------ nueva versión
+  // ------------------------------------------------------------------ actualizaciones
+  // al abrir (en silencio) y con «buscar actualizaciones»: mira la última Release de GitHub; si es más nueva,
+  // descarga la APK dentro de la app y abre el instalador de Android (va firmada con la misma clave: se instala encima)
+  const NATIVE = !!window.Capacitor?.isNativePlatform?.();
+  const Installer = NATIVE ? window.Capacitor.registerPlugin('ApkInstaller') : null;
   const vparts = v => String(v || '').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
-  const newer = (a, b) => { const x = vparts(a), y = vparts(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i]; return false; };
-  async function checkUpdate() {
-    if (!window.APP_VERSION || !window.Capacitor?.isNativePlatform?.()) return;
+  const newer = (a, b) => { const x = vparts(a), y = vparts(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+  let updTimer = 0, installing = false;
+  function updBar(html, autohide) {
+    const u = $('upd');
+    clearTimeout(updTimer);
+    u.innerHTML = html; u.hidden = false;
+    if (autohide) updTimer = setTimeout(() => { u.hidden = true; }, autohide);
+  }
+  async function latestRelease() {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { cache: 'no-cache' });
+    if (!r.ok) throw new Error(r.status);
+    const rel = await r.json(), apk = (rel.assets || []).find(a => /\.apk$/i.test(a.name));
+    return { tag: rel.tag_name, apk: apk?.browser_download_url || null };
+  }
+  async function checkUpdate(manual) {
+    const mine = window.APP_VERSION;
+    if (manual) updBar('<span>Buscando actualizaciones…</span>');
     try {
-      const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
-      const rel = await r.json(), apk = (rel.assets || []).find(a => /\.apk$/i.test(a.name));
-      if (!apk || !newer(rel.tag_name, window.APP_VERSION)) return;
-      const u = $('upd');
-      u.innerHTML = `<span>Nueva versión ${esc(rel.tag_name.replace(/^v/i, ''))}</span><a href="${esc(apk.browser_download_url)}">Descargar</a>`;
-      u.hidden = false;
-    } catch {}
+      const { tag, apk } = await latestRelease();
+      if (apk && newer(tag, mine)) {
+        updBar(`<span><b>Nueva versión ${esc(tag.replace(/^v/i, ''))}</b> · tienes la ${esc(mine)}</span>
+          <button id="updGo" class="btn">Instalar</button><button id="updNo" class="lnk" aria-label="Ahora no">×</button>
+          <i class="prog"><i id="updProg"></i></i>`);
+        $('updNo').onclick = () => { $('upd').hidden = true; };
+        $('updGo').onclick = () => installUpdate(apk);
+      } else if (manual) {
+        updBar(`<span>Estás al día · v${esc(mine)}</span>`, 3500);
+      }
+    } catch {
+      if (manual) updBar('<span>No se pudo consultar GitHub · ¿hay conexión?</span>', 4000);
+    }
+  }
+  const say = t => { const s = $('upd').querySelector('span'); if (s) s.textContent = t; };
+  const waitPermission = () => new Promise(res => {   // tras abrir Ajustes no llega aviso de vuelta: se pregunta cada segundo
+    const t0 = Date.now();
+    const tick = async () => {
+      let ok = false;
+      try { ok = (await Installer.canInstall()).allowed; } catch {}
+      if (ok || Date.now() - t0 > 180000) return res(ok);
+      setTimeout(tick, 1000);
+    };
+    setTimeout(tick, 1000);
+  });
+  async function installUpdate(url) {
+    if (!Installer) { location.href = url; return; }   // navegador: descarga normal
+    if (installing) return;
+    installing = true;
+    try {
+      if (!(await Installer.canInstall()).allowed) {   // solo la primera vez
+        say('Activa «Permitir de esta fuente» y vuelve');
+        await Installer.openInstallSettings();
+        if (!(await waitPermission())) { say('Sin permiso para instalar · vuelve a intentarlo'); return; }
+      }
+      say('Descargando…');
+      const h = await Installer.addListener('progress', p => {
+        say(p.percent >= 0 ? `Descargando ${p.percent} %` : 'Descargando…');
+        const bar = $('updProg'); if (bar) bar.style.width = Math.max(0, p.percent) + '%';
+      });
+      let res;
+      try { res = await Installer.download({ url }); } finally { h.remove(); }
+      say('Abriendo el instalador…');
+      await Installer.install({ path: res.path });
+    } catch (e) {
+      if (e?.code === 'UNIMPLEMENTED') { location.href = url; return; }
+      say('No se pudo actualizar: ' + (e?.message || e));
+    } finally { installing = false; }
   }
 
   // ------------------------------------------------------------------ arranque
@@ -346,8 +421,7 @@
   document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.days === days)));
   $('list').innerHTML = '<div class="empty">Calculando pasadas…</div>';
   start(true);
-  checkUpdate();
-  // cada minuto: cuenta atrás, «ahora» y fuera las pasadas terminadas; al volver a la app tras >1 h, recalcula
+  if (NATIVE) checkUpdate(false);
   setInterval(() => { if (catalog) renderList(false); }, 60000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && catalog && Date.now() - computedAt > 3600000) start(false);

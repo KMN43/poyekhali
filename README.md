@@ -7,9 +7,10 @@
 Próximas pasadas sobre **Zaragoza** de los satélites que se pueden **escuchar con un RTL-SDR** y antenas sencillas (bandas de 2 m y 70 cm): Meteor-M (imágenes LRPT), la ISS y satélites de radioaficionado.
 
 Una sola pantalla:
-- **Arriba**: mapa del mundo de puntos con la trayectoria de la pasada elegida, la huella de visibilidad y la estación.
-- **Abajo**: tabla de las pasadas de los próximos **7 o 14 días** (hora, elevación máxima, duración, ruta y día/noche).
-- **Filtro** de satélites.
+- **Arriba**: mapa del mundo de puntos con la trayectoria de la pasada elegida. La línea es muy fina donde el satélite no se ve y gruesa dentro del horizonte de visión. También muestra la huella de visibilidad y la estación.
+- **Abajo**: tabla de las pasadas de los próximos **7 o 14 días**: hora, elevación máxima, duración, ruta y luz (☀ día, amanecer, atardecer, ☾ noche).
+- **Filtro** de un satélite (o todos).
+- Tipografía **Fira Code** (SIL OFL 1.1), incluida en la app.
 
 ## Instalar en Android
 Escanea el QR o abre el enlace en el móvil:
@@ -18,7 +19,7 @@ Escanea el QR o abre el enlace en el móvil:
 
 **https://github.com/KMN43/poyekhali/releases/latest/download/Poyekhali.apk**
 
-La primera vez Android pide *Permitir de esta fuente*. Cuando hay una versión nueva, la app lo avisa al abrirse.
+La primera vez Android pide *Permitir de esta fuente*. Las actualizaciones se buscan al abrir la app y con **«buscar actualizaciones»** al final de la tabla. Si hay una versión nueva, se descarga e instala desde la propia app con un toque.
 
 ## Cómo funciona
 | Pieza | Qué hace |
