@@ -1,6 +1,6 @@
 """Logo de Poyekhali → iconos de Android, pantalla de arranque y docs/logo.png + docs/logo.svg.
     python make-icons.py
-Misma geometría que src/logo.js: esfera en 9 husos + órbita inclinada con el satélite.
+Misma geometría que src/logo.js: esfera cortada en 9 husos.
 """
 import glob
 import math
@@ -50,33 +50,19 @@ def render(size, bg=PAPER, mark=0.62, shape=None):
     u = S * mark / 100.0
     o = (S - 100 * u) / 2
     P = lambda x, y: (o + x * u, o + y * u)
-    # órbita (tenue) por debajo, para que se vea solo entre husos y fuera de la esfera
-    orb = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(orb).line([P(*p) for p in orbit_pts()], fill=INK + (97,), width=max(1, int(1.5 * u)))
-    img.alpha_composite(orb)
     for cx, cy, rx, ry in slices():
         x0, y0 = P(cx - rx, cy - ry)
         x1, y1 = P(cx + rx, cy + ry)
         d.ellipse((x0, y0, x1, y1), fill=INK + (255,))
-    sx, sy = P(93.0, 32.3)
-    halo = (bg or PAPER) + (255,)
-    d.ellipse((sx - 5.2 * u, sy - 5.2 * u, sx + 5.2 * u, sy + 5.2 * u), fill=halo if bg is not None else (0, 0, 0, 0))
-    if bg is None:  # sin fondo: el halo es un hueco real
-        mask = Image.new("L", (S, S), 255)
-        ImageDraw.Draw(mask).ellipse((sx - 5.2 * u, sy - 5.2 * u, sx + 5.2 * u, sy + 5.2 * u), fill=0)
-        img.putalpha(Image.composite(img.getchannel("A"), Image.new("L", (S, S), 0), mask))
-        d = ImageDraw.Draw(img)
-    d.ellipse((sx - 3.2 * u, sy - 3.2 * u, sx + 3.2 * u, sy + 3.2 * u), fill=INK + (255,))
     return img.resize((size, size), Image.LANCZOS)
 
 
 def svg():
     s = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">',
          '<rect width="100" height="100" fill="#efece5"/><g transform="translate(19 19) scale(.62)" color="#1d1c1a">']
-    s.append('<ellipse cx="50" cy="50" rx="47" ry="13" transform="rotate(-20 50 50)" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.5"/>')
     for cx, cy, rx, ry in slices():
         s.append(f'<ellipse cx="{cx:.2f}" cy="{cy}" rx="{rx:.2f}" ry="{ry:.2f}" fill="currentColor"/>')
-    s.append('<circle cx="93.0" cy="32.3" r="5.2" fill="#efece5"/><circle cx="93.0" cy="32.3" r="3.2" fill="currentColor"/></g></svg>')
+    s.append('</g></svg>')
     return "\n".join(s)
 
 

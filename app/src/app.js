@@ -47,10 +47,23 @@
   }
 
   // ------------------------------------------------------------------ iconos de luz (16×16, trazo)
+  // ciclo día/noche en disco (texturas de 1 bit): sol lleno, medio disco rayado al amanecer (arriba) y al
+  // atardecer (abajo), y la luna de noche
+  function hatchHalf(upper) {   // rayas a 45° dentro del medio disco de radio 5,2 centrado en (8, 8)
+    const R = 5.2; let d = '';
+    for (let c = -7; c <= 7; c += 1.75) {
+      const q = 2 * R * R - c * c; if (q <= 0) continue;
+      let u1 = (c - Math.sqrt(q)) / 2, u2 = (c + Math.sqrt(q)) / 2;
+      if (upper) u2 = Math.min(u2, c); else u1 = Math.max(u1, c);
+      if (u2 - u1 < 0.2) continue;
+      d += `M${(8 + u1).toFixed(2)} ${(8 + u1 - c).toFixed(2)}L${(8 + u2).toFixed(2)} ${(8 + u2 - c).toFixed(2)}`;
+    }
+    return d;
+  }
   const ICON = {
-    day: '<circle cx="8" cy="8" r="2.7"/><path d="M8 1.6v1.6M8 12.8v1.6M1.6 8h1.6M12.8 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M3.5 12.5l1.1-1.1M11.4 4.6l1.1-1.1"/>',
-    dawn: '<path d="M1.8 12h12.4M4.4 12a3.6 3.6 0 0 1 7.2 0M6.4 5.4 8 3.8l1.6 1.6M8 3.8v3.4"/>',
-    dusk: '<path d="M1.8 12h12.4M4.4 12a3.6 3.6 0 0 1 7.2 0M6.4 5.6 8 7.2l1.6-1.6M8 3.8v3.4"/>',
+    day: '<circle cx="8" cy="8" r="5.2" class="sun"/>',
+    dawn: `<circle cx="8" cy="8" r="5.2"/><path class="hatch" d="${hatchHalf(true)}"/><path d="M1.6 8h12.8"/>`,
+    dusk: `<circle cx="8" cy="8" r="5.2"/><path class="hatch" d="${hatchHalf(false)}"/><path d="M1.6 8h12.8"/>`,
     night: '<path d="M10.6 2.4a5.7 5.7 0 1 0 3 9.9 4.6 4.6 0 0 1-3-9.9Z"/>',
   };
   const LIGHT_TXT = { day: 'de día', dawn: 'amanecer', dusk: 'atardecer', night: 'de noche' };
@@ -105,15 +118,19 @@
     return out;
   }
 
-  // elevación del Sol en la estación (baja precisión, suficiente para la luz)
-  function sunEl(date) {
+  // posición del Sol (baja precisión, suficiente para la luz y el terminador)
+  function sunRaDec(date) {
     const d = date.getTime() / 86400000 - 10957.5;
     const g = (357.529 + 0.98560028 * d) * D2R, q = 280.459 + 0.98564736 * d;
     const L = (q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * D2R, e = (23.439 - 3.6e-7 * d) * D2R;
-    const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
-    const ha = S.gstime(date) + STATION.lon * D2R - ra, la = STATION.lat * D2R;
-    return Math.asin(Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(ha)) * R2D;
+    return { ra: Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec: Math.asin(Math.sin(e) * Math.sin(L)), gmst: S.gstime(date) };
   }
+  // seno de la elevación del Sol en (lat, lon) en grados
+  const sunSin = (s, lat, lon) => {
+    const la = lat * D2R, ha = s.gmst + lon * D2R - s.ra;
+    return Math.sin(la) * Math.sin(s.dec) + Math.cos(la) * Math.cos(s.dec) * Math.cos(ha);
+  };
+  const sunEl = date => Math.asin(sunSin(sunRaDec(date), STATION.lat, STATION.lon)) * R2D;
   // día (Sol > 6°), noche (< −6°, fin del crepúsculo civil) y, entre medias, amanecer o atardecer
   function light(t) {
     const e = sunEl(new Date(t));
@@ -188,7 +205,7 @@
         const k = dayKey(new Date(p.aos));
         if (k !== lastDay) { lastDay = k; html += `<tr class="day"><td colspan="6">${esc(fDay.format(new Date(p.aos)))}</td></tr>`; }
         const live = p.aos <= now && p.los > now;
-        const cls = ['p', p.max < LOW_EL ? 'low' : '', p === selected ? 'sel' : ''].join(' ');
+        const cls = ['p', p.max < LOW_EL ? 'low' : '', p === selected ? 'sel' : '', live ? 'live' : ''].join(' ');
         html += `<tr class="${cls}" data-i="${i}">
           <td class="t">${live ? 'ahora' : hhmm(new Date(p.aos))}</td>
           <td>${esc(p.sat.name)}</td>
@@ -262,7 +279,7 @@
 
   // ------------------------------------------------------------------ mapa de puntos
   const cv = $('map'), ctx = cv.getContext('2d');
-  const INK = '29,28,26', PAPER = '#efece5';
+  const INK = '29,28,26', PAPER = '#efece5', ACC = '#e8ae17';   // ACC = --acc (amarillo sodio)
   function drawMap() {
     const dpr = window.devicePixelRatio || 1, cw = cv.clientWidth, ch = cv.clientHeight;
     if (!cw || !ch) return;
@@ -285,14 +302,20 @@
       const a = lat * D2R, b = lon * D2R;
       return Math.acos(Math.min(1, Math.sin(a) * Math.sin(foot.lat) + Math.cos(a) * Math.cos(foot.lat) * Math.cos(b - foot.lon))) < foot.r;
     };
+    // día y noche en el instante de la culminación (o ahora): la noche es tierra más densa y mar punteado
+    const sun = sunRaDec(new Date(selected ? selected.tca : Date.now()));
     const r = Math.max(0.8, L.step * k * 0.3);
     L.rows.forEach((row, j) => {
       const lat = L.latN - L.step / 2 - j * L.step;
       for (let i = 0; i < row.length; i++) {
-        if (row.charCodeAt(i) !== 49) continue;
-        const lon = -180 + L.step / 2 + i * L.step;
-        ctx.fillStyle = `rgba(${INK},${inFoot(lat, lon) ? 0.5 : 0.2})`;
-        ctx.beginPath(); ctx.arc(X(lon), Y(lat), r, 0, 7); ctx.fill();
+        const lon = -180 + L.step / 2 + i * L.step, night = sunSin(sun, lat, lon) < 0;
+        if (row.charCodeAt(i) === 49) {
+          ctx.fillStyle = `rgba(${INK},${inFoot(lat, lon) ? 0.62 : night ? 0.36 : 0.18})`;
+          ctx.beginPath(); ctx.arc(X(lon), Y(lat), r, 0, 7); ctx.fill();
+        } else if (night && (i + j) % 3 === 0) {
+          ctx.fillStyle = `rgba(${INK},.16)`;
+          ctx.beginPath(); ctx.arc(X(lon), Y(lat), r * 0.45, 0, 7); ctx.fill();
+        }
       }
     });
     if (foot) {
@@ -311,11 +334,12 @@
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.strokeStyle = `rgba(${INK},.55)`; ctx.lineWidth = 0.6;
       polyline(pts, X, Y);
-      ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 2.6;
       let run = [];
       const flush = () => {
         if (run.length > 1) {
-          polyline(run, X, Y);
+          // tramo visible: tinta con alma amarilla
+          ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 3.8; polyline(run, X, Y);
+          ctx.strokeStyle = ACC; ctx.lineWidth = 1.8; polyline(run, X, Y);
           const a = run[run.length - 2], b = run[run.length - 1];   // flecha en el sentido de avance
           if (Math.abs(b.lon - a.lon) < 180) {
             const ang = Math.atan2(Y(b.lat) - Y(a.lat), X(b.lon) - X(a.lon)), x = X(b.lon), y = Y(b.lat);
@@ -333,8 +357,9 @@
       // satélite en la culminación
       const c = subpoint(rec, new Date(selected.tca));
       if (c) {
-        ctx.fillStyle = PAPER; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 5.5, 0, 7); ctx.fill();
-        ctx.fillStyle = `rgb(${INK})`; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 3.4, 0, 7); ctx.fill();
+        ctx.fillStyle = PAPER; ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 6, 0, 7); ctx.fill();
+        ctx.fillStyle = ACC; ctx.strokeStyle = `rgb(${INK})`; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.arc(X(c.lon), Y(c.lat), 3.8, 0, 7); ctx.fill(); ctx.stroke();
       }
     }
 

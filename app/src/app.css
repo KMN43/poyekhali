@@ -13,6 +13,7 @@
   --ink3: rgba(29, 28, 26, .36);
   --ink4: rgba(29, 28, 26, .12);
   --sel: rgba(29, 28, 26, .07);
+  --acc: #e8ae17;   /* amarillo sodio · línea D, 589 nm: el único color; solo para «lo que pasa ahora / lo que se ve» */
   color-scheme: light;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -83,10 +84,12 @@ header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 .detail .l2 { font-size: 11px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .detail .l2 b { font-weight: 600; color: var(--ink); }
 .detail .l1 .when { margin-left: auto; font-size: 11px; color: var(--ink); flex: none; overflow: visible; }
-.detail .when.live { font-weight: 600; }
+.detail .l1 .when.live { font-weight: 600; background: var(--acc); padding: 0 7px; border-radius: 999px; }
 
 /* iconos de luz */
 .ico { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
+.ico .sun { fill: var(--acc); }
+.ico .hatch { stroke-width: .8; }
 .ico.sm { width: 13px; height: 13px; vertical-align: -2px; margin-right: 1px; }
 
 /* filtro de satélites: selección única */
@@ -98,7 +101,7 @@ header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 /* aviso / búsqueda de actualizaciones */
 .upd { position: relative; font-size: 11px; display: flex; gap: 10px; align-items: center; min-height: 26px; padding: 2px 0 4px; }
 .upd span { flex: 1; min-width: 0; }
-.upd .btn { border: 1px solid var(--ink); border-radius: 999px; padding: 3px 10px; font-weight: 600; }
+.upd .btn { border: 1px solid var(--ink); border-radius: 999px; padding: 3px 10px; font-weight: 600; background: var(--acc); }
 .upd .lnk { font-size: 15px; padding: 0 4px; color: var(--ink2); }
 .upd .prog { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--ink4); }
 .upd .prog i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--ink); transition: width .2s; }
@@ -120,7 +123,8 @@ tr.day td {
 tr.p { cursor: pointer; }
 tr.p.low { color: var(--ink2); }
 tr.p.sel { background: var(--sel); }
-tr.p.sel td:first-child { box-shadow: inset 3px 0 0 var(--ink); }
+tr.p.sel td:first-child { box-shadow: inset 4px 0 0 var(--acc); }
+tr.p.live .t { background: linear-gradient(var(--acc), var(--acc)) left 60% / 100% 45% no-repeat; }
 .t { font-weight: 600; }
 .r { color: var(--ink2); font-size: 11px; }
 .el { display: inline-flex; align-items: center; gap: 5px; }
