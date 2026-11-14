@@ -291,52 +291,83 @@
   new ResizeObserver(() => { if (catalog) renderSky(); }).observe($('sky'));
 
   // ------------------------------------------------------------------ cielo (página 3): recorrido polar y perfil de elevación
+  // dónde está la antena: «tejado» = horizonte libre; «ventana» = máscara medida (solo ángulos, sin coordenadas)
+  const SITES = { roof: { name: 'Tejado' }, window: { name: 'Ventana', az0: 114, az1: 214, el: 10 } };
+  let site = ls.get('site', 'roof');
+  const seen = (az, el) => { const m = SITES[site]; return el >= 0 && (m.az0 == null || (el >= m.el && az >= m.az0 && az <= m.az1)); };
   function renderSky() {
     const box = $('sky'), p = selected, rec = p && recs.get(p.sat.id);
     if (!rec) { box.innerHTML = '<div class="empty">Elige una pasada en la tabla.</div>'; return; }
-    const N = 80, pts = [];
-    for (let i = 0; i <= N; i++) { const t = p.aos + (p.los - p.aos) * i / N, l = look(rec, new Date(t)); if (l) pts.push({ t, el: Math.max(0, l.el), az: l.az }); }
-    const now = Date.now(), live = p.aos <= now && p.los > now;
-    // tamaños reales de la página: el polar es cuadrado; el perfil ocupa el resto
-    const bw = (box.clientWidth || 375) - 32, bh = box.clientHeight || 220, ps = Math.round(Math.min(bh, bw * 0.46));
+    const pts = [], STEP = 2000;
+    for (let t = p.aos; t <= p.los + 1; t += STEP) {
+      const l = look(rec, new Date(Math.min(t, p.los))); if (!l) continue;
+      pts.push({ t: Math.min(t, p.los), el: Math.max(0, l.el), az: l.az, v: seen(l.az, l.el) });
+    }
+    const now = Date.now(), live = p.aos <= now && p.los > now, win = site === 'window', m = SITES[site];
+    // tramos seguidos con o sin visión directa (comparten el punto de corte para que la línea no se rompa)
+    const runs = [];
+    pts.forEach((q, i) => { if (!i || q.v !== pts[i - 1].v) runs.push({ v: q.v, pts: i ? [pts[i - 1]] : [] }); runs[runs.length - 1].pts.push(q); });
+    const vis = pts.filter(q => q.v), visSec = vis.length ? Math.round((vis[vis.length - 1].t - vis[0].t) / 1000) : 0;
+    // tamaños reales de la página: el polar es cuadrado; el perfil ocupa el resto, bajo la barra del selector
+    const TB = 22, bw = (box.clientWidth || 375) - 32, bh = (box.clientHeight || 220) - TB, ps = Math.round(Math.min(bh, bw * 0.46));
+    const f = n => n.toFixed(1);
+    const hatch = (id, k) => `<defs><pattern id="${id}" width="${k}" height="${k}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V${k}" style="stroke:var(--ink);stroke-opacity:.32" stroke-width="${k / 4}"/></pattern></defs>`;
     // polar: el centro es el cenit, el borde el horizonte; N arriba, E a la derecha
     const R = 50, C = 62;
     const P = (az, el) => { const r = R * (90 - el) / 90; return [C + r * Math.sin(az * D2R), C - r * Math.cos(az * D2R)]; };
-    const f = n => n.toFixed(1);
-    const path = pts.map((q, i) => (i ? 'L' : 'M') + P(q.az, q.el).map(f).join(' ')).join('');
+    const pp = a => a.map((q, i) => (i ? 'L' : 'M') + P(q.az, q.el).map(f).join(' ')).join('');
+    let shadeP = '';
+    if (win) {   // todo el disco menos el sector visible (de az0 a az1, por encima de el)
+      const r = R * (90 - m.el) / 90, [x0, y0] = P(m.az0, m.el), [x1, y1] = P(m.az1, m.el);
+      shadeP = `<path fill="url(#hzp)" fill-rule="evenodd" d="M${C - R} ${C}a${R} ${R} 0 1 0 ${2 * R} 0a${R} ${R} 0 1 0 ${-2 * R} 0Z M${C} ${C}L${f(x0)} ${f(y0)}A${f(r)} ${f(r)} 0 ${m.az1 - m.az0 > 180 ? 1 : 0} 1 ${f(x1)} ${f(y1)}Z"/>
+        <path class="g3" d="M${C} ${C}L${f(x0)} ${f(y0)}A${f(r)} ${f(r)} 0 ${m.az1 - m.az0 > 180 ? 1 : 0} 1 ${f(x1)} ${f(y1)}Z"/>`;
+    }
+    const trkP = runs.map(r => `<path class="${r.v ? 'trk' : 'trk0'}" d="${pp(r.pts)}"/>`).join('');
     const [ax, ay] = P(p.azA, 0), [lx, ly] = P(p.azL, 0), mx = pts.reduce((a, b) => b.el > a.el ? b : a), [tx, ty] = P(mx.az, mx.el);
-    const b = pts[pts.length - 2], [bx, by] = P(b.az, b.el), ang = Math.atan2(ly - by, lx - bx);
+    const b = pts[Math.max(0, pts.length - 3)], [bx, by] = P(b.az, b.el), ang = Math.atan2(ly - by, lx - bx);
     const arrow = `M${f(lx + 5 * Math.cos(ang))} ${f(ly + 5 * Math.sin(ang))}L${f(lx + 4.5 * Math.cos(ang + 2.5))} ${f(ly + 4.5 * Math.sin(ang + 2.5))}L${f(lx + 4.5 * Math.cos(ang - 2.5))} ${f(ly + 4.5 * Math.sin(ang - 2.5))}Z`;
     let nowMark = '';
     if (live) { const l = look(rec, new Date(now)); if (l) { const [nx, ny] = P(l.az, Math.max(0, l.el)); nowMark = `<circle cx="${f(nx)}" cy="${f(ny)}" r="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.4"/>`; } }
     const lab = (az, txt) => { const [x, y] = P(az, -9); return `<text x="${f(x)}" y="${f(y + 3)}" text-anchor="middle" class="k">${txt}</text>`; };
-    const polar = `<svg class="polar" viewBox="0 0 124 124" width="${ps}" height="${ps}" role="img" aria-label="Recorrido en el cielo">
+    const polar = `<svg class="polar" viewBox="0 0 124 124" width="${ps}" height="${ps}" role="img" aria-label="Recorrido en el cielo">${hatch('hzp', 2.6)}
+      ${shadeP}
       <circle class="g" cx="${C}" cy="${C}" r="${R}"/><circle class="g" cx="${C}" cy="${C}" r="${f(R * 2 / 3)}"/><circle class="g" cx="${C}" cy="${C}" r="${f(R / 3)}"/>
       <path class="g" d="M${C - R} ${C}H${C + R}M${C} ${C - R}V${C + R}"/>
       <text x="${C + 2}" y="${f(C - R / 3 - 2)}">60°</text><text x="${C + 2}" y="${f(C - R * 2 / 3 - 2)}">30°</text>
       ${lab(0, 'N')}${lab(90, 'E')}${lab(180, 'S')}${lab(270, 'O')}
-      <path class="trk" d="${path}"/><path d="${arrow}" fill="var(--ink)"/>
+      ${trkP}<path d="${arrow}" fill="var(--ink)"/>
       <circle cx="${f(ax)}" cy="${f(ay)}" r="2.6" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.2"/>
       <circle cx="${f(tx)}" cy="${f(ty)}" r="2.4" fill="var(--ink)"/>
       ${nowMark}</svg>`;
-    // perfil: elevación frente al tiempo
+    // perfil: elevación frente al tiempo; en «ventana», bandas rayadas donde no hay visión directa
     const W = Math.max(120, bw - ps - 10), H = bh, l0 = 24, r0 = 6, t0 = 10, b0 = 26, iw = W - l0 - r0, ih = H - t0 - b0;
     const top = Math.max(30, Math.ceil(p.max / 15) * 15);
     const xs = t => l0 + (t - p.aos) / (p.los - p.aos) * iw, ys = e => t0 + ih - e / top * ih;
     let grid = '';
     for (let e = 0; e <= top; e += 15) grid += `<path class="g" d="M${l0} ${f(ys(e))}H${l0 + iw}"/><text x="${l0 - 3}" y="${f(ys(e) + 3)}" text-anchor="end">${e}°</text>`;
     const good = LOW_EL <= top ? `<path class="g2" d="M${l0} ${f(ys(LOW_EL))}H${l0 + iw}"/><text x="${l0 + 3}" y="${f(ys(LOW_EL) - 3)}">buena señal</text>` : '';
-    const line = pts.map((q, i) => (i ? 'L' : 'M') + f(xs(q.t)) + ' ' + f(ys(q.el))).join('');
+    const shadeF = win ? runs.filter(r => !r.v).map(r => { const a = xs(r.pts[0].t), z = xs(r.pts[r.pts.length - 1].t); return `<rect x="${f(a)}" y="${t0}" width="${f(Math.max(0.5, z - a))}" height="${ih}" fill="url(#hzf)"/>`; }).join('') : '';
+    const pl = a => a.map((q, i) => (i ? 'L' : 'M') + f(xs(q.t)) + ' ' + f(ys(q.el))).join('');
+    const line = pl(pts), trkF = runs.map(r => `<path class="${r.v ? 'trk' : 'trk0'}" d="${pl(r.pts)}"/>`).join('');
     const area = `${line}L${f(xs(p.los))} ${f(ys(0))}L${f(xs(p.aos))} ${f(ys(0))}Z`;
     const tl = (t, txt, anchor) => `<text x="${f(xs(t))}" y="${H - 14}" text-anchor="${anchor}">${txt}</text><text x="${f(xs(t))}" y="${H - 4}" text-anchor="${anchor}" class="k">${hhmm(new Date(t))}</text>`;
     const nowLine = live ? `<path class="now" d="M${f(xs(now))} ${t0}V${t0 + ih}"/>` : '';
-    const prof = `<svg class="prof" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Perfil de elevación">
-      ${grid}${good}<path class="area" d="${area}"/><path class="trk" d="${line}"/>${nowLine}
+    const prof = `<svg class="prof" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Perfil de elevación">${hatch('hzf', 4)}
+      ${shadeF}${grid}${good}<path class="area" d="${area}"/>${trkF}${nowLine}
       <circle cx="${f(xs(p.tca))}" cy="${f(ys(p.max))}" r="2.4" fill="var(--ink)"/>
       <text x="${f(xs(p.tca))}" y="${f(ys(p.max) - 5)}" text-anchor="middle" class="k">${num(p.max, 1)}°</text>
       ${tl(p.aos, 'AOS ' + card(p.azA), 'start')}${tl(p.tca, 'máx', 'middle')}${tl(p.los, 'LOS ' + card(p.azL), 'end')}</svg>`;
-    box.innerHTML = polar + prof;
+    // barra: selector y, en «ventana», cuándo hay visión directa
+    const info = !win ? 'horizonte libre'
+      : vis.length ? `visión directa ${hms(new Date(vis[0].t))}–${hms(new Date(vis[vis.length - 1].t))} · ${Math.floor(visSec / 60)}:${p2(visSec % 60)}`
+      : 'sin visión directa';
+    const segB = Object.keys(SITES).map(k => `<button data-site="${k}" aria-pressed="${k === site}">${SITES[k].name}</button>`).join('');
+    box.innerHTML = `<div class="skt"><div class="seg mini" role="group" aria-label="Dónde está la antena">${segB}</div><span>${info}</span></div><div class="skb">${polar}${prof}</div>`;
   }
+  $('sky').addEventListener('click', e => {
+    const b = e.target.closest('[data-site]'); if (!b || b.dataset.site === site) return;
+    site = b.dataset.site; ls.set('site', site); renderSky();
+  });
 
   // ------------------------------------------------------------------ mapa de puntos
   const cv = $('map'), ctx = cv.getContext('2d');

@@ -90,7 +90,8 @@ header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 .tabs .prec { font-size: 9px; color: var(--ink3); letter-spacing: .06em; align-self: center; }
 
 /* cielo: diagrama polar + perfil de elevación */
-.sky { display: flex; gap: 10px; align-items: stretch; }
+.sky { display: flex; flex-direction: column; }
+.sky .skb { flex: 1; min-height: 0; display: flex; gap: 10px; align-items: center; }
 .sky svg { display: block; flex: none; overflow: visible; align-self: center; }
 
 
@@ -104,6 +105,12 @@ header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 .sky .area { fill: var(--ink); fill-opacity: .1; }
 .sky .now { stroke: var(--ink); stroke-width: 1; }
 .sky .empty { margin: auto; }
+.sky .trk0 { stroke: var(--ink); stroke-opacity: .55; fill: none; stroke-width: .9; stroke-dasharray: 2 2.2; stroke-linecap: round; }
+.sky .g3 { stroke: var(--ink2); fill: none; stroke-width: .7; }
+.sky .skt { flex: none; height: 22px; display: flex; align-items: center; gap: 8px; font-size: 9px; color: var(--ink2); white-space: nowrap; overflow: hidden; }
+.sky .skt span { overflow: hidden; text-overflow: ellipsis; }
+.seg.mini { flex: none; }
+.seg.mini button { padding: 2px 8px; font-size: 9px; letter-spacing: .06em; }
 
 /* ficha: plano a la izquierda, datos a la derecha */
 .card { display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; align-items: stretch; overflow: hidden; }
