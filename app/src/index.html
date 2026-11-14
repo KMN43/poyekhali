@@ -12,7 +12,7 @@
   <section class="top">
     <header>
       <svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#logo"/></svg>
-      <div class="ttl"><b>Poyekhali<small>Поехали</small></b><span class="meta" id="where">Zaragoza</span></div>
+      <div class="ttl"><b>Poyekhali<small>Поехали</small></b><span class="meta" id="where" role="button" tabindex="0" aria-label="Cambiar ubicación">Zaragoza</span></div>
       <div class="seg" role="group" aria-label="Días">
         <button data-days="7" aria-pressed="true">7 d</button><button data-days="14" aria-pressed="false">14 d</button>
       </div>
@@ -35,6 +35,7 @@
   <!-- banda inferior: información, actualizaciones y compartir -->
   <nav class="abar" aria-label="Acciones">
     <button id="bInfo"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.6v.1"/></svg>Info</button>
+    <button id="bLoc"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.6s4.6-4.3 4.6-7.8a4.6 4.6 0 0 0-9.2 0c0 3.5 4.6 7.8 4.6 7.8Z"/><circle cx="8" cy="6.8" r="1.6"/></svg>Lugar</button>
     <button id="bUpd"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.4 8a5.4 5.4 0 1 1-1.6-3.8M12.2 1.8v2.6H9.6"/></svg>Actualizar</button>
     <button id="bShare"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="4" cy="8" r="1.8"/><circle cx="12" cy="3.6" r="1.8"/><circle cx="12" cy="12.4" r="1.8"/><path d="M5.6 7.1l4.8-2.6M5.6 8.9l4.8 2.6"/></svg>Compartir</button>
   </nav>

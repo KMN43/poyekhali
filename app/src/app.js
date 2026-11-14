@@ -4,7 +4,7 @@
   'use strict';
   const API = 'https://poyekhali.biblioscan-galaxia.workers.dev/api/catalog';
   const REPO = 'KMN43/poyekhali';
-  const STATION = { name: 'Zaragoza', lat: 41.6488, lon: -0.8891, alt: 200 };
+  const HOME = { name: 'Zaragoza', tag: 'ZGZ', lat: 41.6488, lon: -0.8891, alt: 200, home: true };
   const MIN_EL = 10;          // pasadas con elevación máxima inferior no se listan
   const LOW_EL = 25;          // por debajo, se muestran atenuadas
   const D2R = Math.PI / 180, R2D = 180 / Math.PI, RE = 6378.137;
@@ -25,7 +25,12 @@
   let days = ls.get('days', 7);
   let pick = ls.get('pick', '*');   // un solo satélite (su id) o '*' = todos
   let computedAt = 0;
-  const obs = { longitude: STATION.lon * D2R, latitude: STATION.lat * D2R, height: STATION.alt / 1000 };
+  // dónde se calculan las pasadas: casa (Zaragoza) o el punto elegido (GPS o a mano); se guarda solo en el móvil
+  const okStation = s => s && Number.isFinite(s.lat) && Number.isFinite(s.lon) && Math.abs(s.lat) <= 90 && Math.abs(s.lon) <= 180;
+  let STATION = okStation(ls.get('station', null)) ? ls.get('station', null) : HOME;
+  const obs = {};
+  const setObs = () => Object.assign(obs, { longitude: STATION.lon * D2R, latitude: STATION.lat * D2R, height: (STATION.alt || 0) / 1000 });
+  setObs();
 
   // ------------------------------------------------------------------ formato
   const tz = 'Europe/Madrid';
@@ -221,7 +226,7 @@
     const age = catalog.updated ? Math.max(0, Math.round((now - Date.parse(catalog.updated)) / 3600000)) : null;
     html += `<div class="foot">
       <div class="legend">${['day', 'dawn', 'dusk', 'night'].map(k => `<span>${icon(k)}${LIGHT_TXT[k]}</span>`).join('')}</div>
-      <div>solo pasadas por encima de ${MIN_EL}° · horas de ${esc(STATION.name)}</div>
+      <div>solo pasadas por encima de ${MIN_EL}° · desde ${esc(STATION.name)} · hora peninsular</div>
       <div>${catalog.sats.length} satélites escuchables · órbitas ${age == null ? '' : age < 1 ? 'de hace menos de 1 h' : `de hace ${age} h`}</div></div>`;
     $('list').innerHTML = html;
     $('list').scrollTop = keepScroll;
@@ -294,7 +299,8 @@
   // dónde está la antena: «tejado» = horizonte libre; «ventana» = máscara medida (solo ángulos, sin coordenadas)
   const SITES = { roof: { name: 'Tejado' }, window: { name: 'Ventana', az0: 114, az1: 214, el: 10 } };
   let site = ls.get('site', 'roof');
-  const seen = (az, el) => { const m = SITES[site]; return el >= 0 && (m.az0 == null || (el >= m.el && az >= m.az0 && az <= m.az1)); };
+  const siteNow = () => STATION.home ? site : 'roof';   // la máscara de la ventana solo vale en casa
+  const seen = (az, el) => { const m = SITES[siteNow()]; return el >= 0 && (m.az0 == null || (el >= m.el && az >= m.az0 && az <= m.az1)); };
   function renderSky() {
     const box = $('sky'), p = selected, rec = p && recs.get(p.sat.id);
     if (!rec) { box.innerHTML = '<div class="empty">Elige una pasada en la tabla.</div>'; return; }
@@ -303,7 +309,7 @@
       const l = look(rec, new Date(Math.min(t, p.los))); if (!l) continue;
       pts.push({ t: Math.min(t, p.los), el: Math.max(0, l.el), az: l.az, v: seen(l.az, l.el) });
     }
-    const now = Date.now(), live = p.aos <= now && p.los > now, win = site === 'window', m = SITES[site];
+    const now = Date.now(), live = p.aos <= now && p.los > now, win = siteNow() === 'window', m = SITES[siteNow()];
     // tramos seguidos con o sin visión directa (comparten el punto de corte para que la línea no se rompa)
     const runs = [];
     pts.forEach((q, i) => { if (!i || q.v !== pts[i - 1].v) runs.push({ v: q.v, pts: i ? [pts[i - 1]] : [] }); runs[runs.length - 1].pts.push(q); });
@@ -358,11 +364,11 @@
       <text x="${f(xs(p.tca))}" y="${f(ys(p.max) - 5)}" text-anchor="middle" class="k">${num(p.max, 1)}°</text>
       ${tl(p.aos, 'AOS ' + card(p.azA), 'start')}${tl(p.tca, 'máx', 'middle')}${tl(p.los, 'LOS ' + card(p.azL), 'end')}</svg>`;
     // barra: selector y, en «ventana», cuándo hay visión directa
-    const info = !win ? 'horizonte libre'
+    const info = !STATION.home ? `horizonte libre · ${esc(STATION.name)}` : !win ? 'horizonte libre'
       : vis.length ? `visión directa ${hms(new Date(vis[0].t))}–${hms(new Date(vis[vis.length - 1].t))} · ${Math.floor(visSec / 60)}:${p2(visSec % 60)}`
       : 'sin visión directa';
     const segB = Object.keys(SITES).map(k => `<button data-site="${k}" aria-pressed="${k === site}">${SITES[k].name}</button>`).join('');
-    box.innerHTML = `<div class="skt"><div class="seg mini" role="group" aria-label="Dónde está la antena">${segB}</div><span>${info}</span></div><div class="skb">${polar}${prof}</div>`;
+    box.innerHTML = `<div class="skt">${STATION.home ? `<div class="seg mini" role="group" aria-label="Dónde está la antena">${segB}</div>` : ''}<span>${info}</span></div><div class="skb">${polar}${prof}</div>`;
   }
   $('sky').addEventListener('click', e => {
     const b = e.target.closest('[data-site]'); if (!b || b.dataset.site === site) return;
@@ -559,7 +565,68 @@
   function metaLine() {
     const ages = [...recs.values()].map(r => (Date.now() - (r.jdsatepoch - 2440587.5) * 86400000) / 86400000);
     const tle = ages.length ? `TLE≤${num(Math.max(...ages), 1)} d` : 'TLE —';
-    return `ZGZ ${num(STATION.lat, 2)}N ${num(Math.abs(STATION.lon), 2)}O · ${recs.size} SAT · ${tle}`;
+    return `${esc(STATION.tag || 'GPS')} ${llTxt(STATION)} · ${recs.size} SAT · ${tle}`;
+  }
+  const llTxt = s => `${num(Math.abs(s.lat), 2)}${s.lat >= 0 ? 'N' : 'S'} ${num(Math.abs(s.lon), 2)}${s.lon >= 0 ? 'E' : 'O'}`;
+
+  // ------------------------------------------------------------------ ubicación: casa, GPS o a mano (por si vas al campo)
+  const tagOf = n => (String(n).normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'GPS');
+  function setStation(st) {
+    STATION = st; ls.set('station', st); setObs();
+    if (!st.home) {   // recientes: los 4 últimos puntos que no son casa
+      const same = q => Math.abs(q.lat - st.lat) < 0.001 && Math.abs(q.lon - st.lon) < 0.001;
+      ls.set('places', [st, ...ls.get('places', []).filter(q => okStation(q) && !same(q))].slice(0, 4));
+    }
+    $('where').textContent = metaLine();
+    if (catalog) { compute(); renderList(true); }
+  }
+  // «41.65, -0.88» (como lo copia Google Maps), «41,65 -0,88» o «41.65N 0.88O»
+  function parseLL(s) {
+    s = String(s).trim().toUpperCase();
+    const parts = (s.includes('.') ? s.split(/[,;\s]+/) : s.split(/[;\s]+/)).filter(Boolean);
+    if (parts.length !== 2) return null;
+    const [lat, lon] = parts.map(p => { const n = parseFloat(p.replace(',', '.').replace(/[NSEWO°]/g, '')); return /[SWO]$/.test(p) ? -n : n; });
+    return okStation({ lat, lon }) ? { lat, lon } : null;
+  }
+  const PIN = '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.6s4.6-4.3 4.6-7.8a4.6 4.6 0 0 0-9.2 0c0 3.5 4.6 7.8 4.6 7.8Z"/><circle cx="8" cy="6.8" r="1.6"/></svg>';
+  function openLoc() {
+    const cur = s => !!s.home === !!STATION.home && Math.abs(s.lat - STATION.lat) < 0.001 && Math.abs(s.lon - STATION.lon) < 0.001;
+    const opt = (s, i) => `<button class="opt" data-pl="${i}" aria-pressed="${cur(s)}"><b>${s.home ? 'Casa · ' : ''}${esc(s.name)}</b><small>${llTxt(s)}${s.home ? '' : ' · ' + num(s.alt || 0) + ' m'}</small></button>`;
+    const places = ls.get('places', []).filter(okStation);
+    $('sheetIn').innerHTML = `
+      <div class="hd"><span class="pin">${PIN}</span><div><b>Ubicación</b><span>${esc(STATION.name)} · ${llTxt(STATION)}</span></div><button class="x" id="sx" aria-label="Cerrar">×</button></div>
+      <p>Las pasadas, el mapa y el cielo se calculan para este punto. Se guarda solo en el móvil.</p>
+      <div class="locs">${opt(HOME, -1)}
+        <button class="opt" id="lGps"><b>Mi posición (GPS)</b><small id="gpsMsg">usa la ubicación del móvil</small></button>
+        ${places.map((s, i) => opt(s, i)).join('')}</div>
+      <h3>A mano</h3>
+      <div class="man"><input id="lCoord" placeholder="41.65, -0.88" autocomplete="off" spellcheck="false" aria-label="Latitud y longitud">
+        <input id="lName" placeholder="Nombre (opcional)" autocomplete="off" aria-label="Nombre del sitio"><button class="btn" id="lOk">Usar</button></div>
+      <p class="k" id="manMsg">Latitud y longitud en grados decimales, tal cual las copia Google Maps (mantén pulsado un punto del mapa).</p>`;
+    $('sheet').hidden = false;
+    $('sx').onclick = closeInfo;
+    $('sheetIn').querySelectorAll('[data-pl]').forEach(b => b.onclick = () => {
+      const i = +b.dataset.pl; setStation(i < 0 ? HOME : places[i]); closeInfo();
+    });
+    $('lGps').onclick = () => {
+      const msg = $('gpsMsg');
+      if (!navigator.geolocation) { msg.textContent = 'este dispositivo no da la ubicación'; return; }
+      msg.textContent = 'buscando…';
+      navigator.geolocation.getCurrentPosition(pos => {
+        const c = pos.coords;
+        setStation({ name: 'Mi posición', tag: 'GPS', lat: +c.latitude.toFixed(5), lon: +c.longitude.toFixed(5), alt: Math.round(c.altitude || 0) });
+        closeInfo();
+      }, err => {
+        msg.textContent = err.code === 1 ? 'sin permiso · actívalo en Ajustes › Apps › Poyekhali › Ubicación' : 'no se pudo obtener la posición · prueba al aire libre';
+      }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 600000 });
+    };
+    $('lOk').onclick = () => {
+      const ll = parseLL($('lCoord').value);
+      if (!ll) { $('manMsg').textContent = 'No lo entiendo: escribe «latitud, longitud», p. ej. 42.12, -0.45'; return; }
+      const name = $('lName').value.trim().slice(0, 24) || 'Punto manual';
+      setStation({ name, tag: tagOf(name), lat: ll.lat, lon: ll.lon, alt: 0 });
+      closeInfo();
+    };
   }
 
   // ------------------------------------------------------------------ banda inferior: info, actualizar y compartir
@@ -586,6 +653,7 @@
       <h3>Cómo se usa</h3>
       <ul><li>Toca una pasada de la tabla para verla en el mapa.</li>
         <li>Desliza arriba (o toca <b>01 · 02 · 03</b>): mapa, ficha del satélite y cielo con el recorrido y la elevación.</li>
+        <li><b>Lugar</b> (o tocar la línea de coordenadas): calcula para tu posición GPS o un punto escrito a mano; vuelve a casa con un toque.</li>
         <li>Por debajo de ${LOW_EL}° la señal suele ser floja: esas pasadas salen atenuadas. Las de menos de ${MIN_EL}° no se listan.</li></ul>
       <h3>Luz en la culminación</h3>
       <div class="legend">${['day', 'dawn', 'dusk', 'night'].map(k => `<span>${icon(k)}${LIGHT_TXT[k]}</span>`).join('')}</div>
@@ -605,6 +673,8 @@
   $('bInfo').addEventListener('click', openInfo);
   $('bUpd').addEventListener('click', () => checkUpdate(true));
   $('bShare').addEventListener('click', share);
+  $('bLoc').addEventListener('click', openLoc);
+  $('where').addEventListener('click', openLoc);
 
   // ------------------------------------------------------------------ arranque
   async function start(fresh) {
@@ -616,6 +686,7 @@
     compute();
     renderList(fresh);
     if (location.hash === '#info') openInfo();   // para capturas
+    if (location.hash === '#lugar') openLoc();
     const pg = { '#ficha': 1, '#cielo': 2 }[location.hash];   // para capturas
     if (pg) requestAnimationFrame(() => $('pager').scrollTo({ left: pg * $('pager').clientWidth }));
   }
