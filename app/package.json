@@ -1,6 +1,6 @@
 {
   "name": "poyekhali",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "private": true,
   "description": "Poyekhali: próximas pasadas sobre Zaragoza de los satélites que se pueden escuchar con un RTL-SDR (Capacitor).",
   "scripts": {
