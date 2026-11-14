@@ -222,15 +222,13 @@
     html += `<div class="foot">
       <div class="legend">${['day', 'dawn', 'dusk', 'night'].map(k => `<span>${icon(k)}${LIGHT_TXT[k]}</span>`).join('')}</div>
       <div>solo pasadas por encima de ${MIN_EL}° · horas de ${esc(STATION.name)}</div>
-      <div>${catalog.sats.length} satélites escuchables · órbitas ${age == null ? '' : age < 1 ? 'de hace menos de 1 h' : `de hace ${age} h`}</div>
-      <button id="chk" class="lnk">v${esc(window.APP_VERSION || '')} · buscar actualizaciones</button></div>`;
+      <div>${catalog.sats.length} satélites escuchables · órbitas ${age == null ? '' : age < 1 ? 'de hace menos de 1 h' : `de hace ${age} h`}</div></div>`;
     $('list').innerHTML = html;
     $('list').scrollTop = keepScroll;
     $('list')._rows = list;
     renderDetail(); drawMap(); renderSky();
   }
   $('list').addEventListener('click', e => {
-    if (e.target.closest('#chk')) { checkUpdate(true); return; }
     const tr = e.target.closest('tr.p'); if (!tr) return;
     selected = $('list')._rows[+tr.dataset.i];
     document.querySelectorAll('tr.p.sel').forEach(x => x.classList.remove('sel'));
@@ -533,6 +531,50 @@
     return `ZGZ ${num(STATION.lat, 2)}N ${num(Math.abs(STATION.lon), 2)}O · ${recs.size} SAT · ${tle}`;
   }
 
+  // ------------------------------------------------------------------ banda inferior: info, actualizar y compartir
+  const APK_URL = `https://github.com/${REPO}/releases/latest/download/Poyekhali.apk`;
+  const Sharer = NATIVE ? window.Capacitor.registerPlugin('Share') : null;
+  async function share() {
+    const text = 'Poyekhali: las próximas pasadas sobre Zaragoza de los satélites que se pueden escuchar con un RTL-SDR. App para Android:';
+    try {
+      if (Sharer) { await Sharer.share({ title: 'Poyekhali', text, url: APK_URL, dialogTitle: 'Compartir Poyekhali' }); return; }
+      if (navigator.share) { await navigator.share({ title: 'Poyekhali', text, url: APK_URL }); return; }
+    } catch (e) {
+      if (e?.name === 'AbortError' || /cancel/i.test(e?.message || '')) return;   // el usuario cerró el menú
+    }
+    try { await navigator.clipboard.writeText(APK_URL); updBar('<span>Enlace de descarga copiado</span>', 3000); }
+    catch { updBar(`<span>${esc(APK_URL)}</span>`, 8000); }
+  }
+  function openInfo() {
+    const n = catalog ? catalog.sats.length : 0;
+    $('sheetIn').innerHTML = `
+      <div class="hd"><svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#logo"/></svg>
+        <div><b>Poyekhali</b><span>Поехали · v${esc(window.APP_VERSION || '')}</span></div><button class="x" id="sx" aria-label="Cerrar">×</button></div>
+      <p>Las próximas pasadas sobre <b>${esc(STATION.name)}</b> de los satélites que se pueden escuchar con un RTL-SDR (2 m y 70 cm): ${n} ahora mismo.</p>
+      <p>«¡Поехали!» (<i>¡vámonos!</i>) es lo que dijo Gagarin al despegar, el 12 de abril de 1961.</p>
+      <h3>Cómo se usa</h3>
+      <ul><li>Toca una pasada de la tabla para verla en el mapa.</li>
+        <li>Desliza arriba (o toca <b>01 · 02 · 03</b>): mapa, ficha del satélite y cielo con el recorrido y la elevación.</li>
+        <li>Por debajo de ${LOW_EL}° la señal suele ser floja: esas pasadas salen atenuadas. Las de menos de ${MIN_EL}° no se listan.</li></ul>
+      <h3>Luz en la culminación</h3>
+      <div class="legend">${['day', 'dawn', 'dusk', 'night'].map(k => `<span>${icon(k)}${LIGHT_TXT[k]}</span>`).join('')}</div>
+      <h3>De dónde salen los datos</h3>
+      <ul><li>Órbitas (TLE) de SatNOGS DB, con CelesTrak de reserva, y frecuencias activas de SatNOGS, a través de un servidor propio en Cloudflare. Se renuevan cada hora.</li>
+        <li>Las pasadas se calculan en el móvil con SGP4 (satellite.js), con precisión de 1 s. Funciona sin conexión con las últimas órbitas guardadas.</li>
+        <li>Mapa: Natural Earth (dominio público).</li></ul>
+      <h3>Créditos</h3>
+      <ul><li>Tipografías Fira Code y Space Grotesk (SIL OFL 1.1).</li>
+        <li>Fotos de los satélites: la licencia de cada una va al pie de su ficha.</li>
+        <li>Código abierto: <a href="https://github.com/${REPO}" target="_blank" rel="noopener">github.com/${REPO}</a></li></ul>`;
+    $('sheet').hidden = false;
+    $('sx').onclick = closeInfo;
+  }
+  const closeInfo = () => { $('sheet').hidden = true; };
+  $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) closeInfo(); });
+  $('bInfo').addEventListener('click', openInfo);
+  $('bUpd').addEventListener('click', () => checkUpdate(true));
+  $('bShare').addEventListener('click', share);
+
   // ------------------------------------------------------------------ arranque
   async function start(fresh) {
     const c = await loadCatalog();
@@ -542,6 +584,7 @@
     renderChips();
     compute();
     renderList(fresh);
+    if (location.hash === '#info') openInfo();   // para capturas
     const pg = { '#ficha': 1, '#cielo': 2 }[location.hash];   // para capturas
     if (pg) requestAnimationFrame(() => $('pager').scrollTo({ left: pg * $('pager').clientWidth }));
   }

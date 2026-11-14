@@ -17,6 +17,7 @@
   --ink4: rgba(29, 28, 26, .12);
   --sel: rgba(29, 28, 26, .07);
   --sg: 'Space Grotesk', 'Fira Code', sans-serif;
+  --barh: calc(46px + env(safe-area-inset-bottom));
   color-scheme: light;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -38,7 +39,31 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   padding: calc(10px + env(safe-area-inset-top)) 16px 8px;
   border-bottom: 1px solid var(--ink4);
 }
-.bottom { height: 50dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom); }
+.bottom { height: calc(50dvh - var(--barh)); overflow-y: auto; overscroll-behavior: contain; }
+
+/* banda inferior: info · actualizar · compartir */
+.abar { height: var(--barh); flex: none; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink3); padding-bottom: env(safe-area-inset-bottom); background: var(--paper); }
+.abar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink2); }
+.abar button + button { border-left: 1px solid var(--ink4); }
+.abar button:active { background: var(--sel); color: var(--ink); }
+.abar .ico { width: 16px; height: 16px; }
+
+/* hoja de información */
+.sheet { position: fixed; inset: 0; z-index: 10; background: rgba(29, 28, 26, .35); display: flex; align-items: flex-end; }
+.sheet[hidden] { display: none; }
+.sheetIn { width: 100%; max-height: 82dvh; overflow-y: auto; background: var(--paper); border-top: 1px solid var(--ink); padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); font-size: 11.5px; line-height: 1.45; }
+.sheetIn .hd { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sheetIn .hd .logo { width: 34px; height: 34px; }
+.sheetIn .hd div { flex: 1; }
+.sheetIn .hd b { display: block; font: 600 18px/1.1 var(--sg); }
+.sheetIn .hd span { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
+.sheetIn .x { font-size: 20px; padding: 0 4px; color: var(--ink2); }
+.sheetIn h3 { margin: 14px 0 4px; font-size: 9px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); border-top: 1px solid var(--ink4); padding-top: 8px; }
+.sheetIn p { margin: 0 0 6px; }
+.sheetIn ul { margin: 0; padding-left: 16px; }
+.sheetIn li { margin-bottom: 3px; }
+.sheetIn a { color: var(--ink); text-underline-offset: 3px; }
+.sheetIn .legend { justify-content: flex-start; margin: 2px 0 0; }
 
 /* cabecera */
 header { display: flex; align-items: center; gap: 10px; min-height: 32px; }
